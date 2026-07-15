@@ -1,0 +1,859 @@
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap');
+
+  #tierkartei-root {
+    --paper: #F5F1E6;
+    --paper-2: #EFE9D8;
+    --ink: #2B2A25;
+    --ink-soft: #6B6656;
+    --forest: #2F4536;
+    --forest-2: #4C6650;
+    --amber: #B9822E;
+    --clay: #A6482F;
+    --sage: #C9D2B8;
+    --line: #D8CFB8;
+    --card-radius: 4px;
+
+    all: initial;
+    *, *::before, *::after { box-sizing: border-box; }
+    display: block;
+    font-family: 'Inter', sans-serif;
+    color: var(--ink);
+    background: var(--paper);
+    min-height: 100vh;
+    padding: 28px 20px 60px;
+    position: relative;
+  }
+
+  #tierkartei-root .wrap { max-width: 980px; margin: 0 auto; }
+
+  #tierkartei-root h1, #tierkartei-root h2, #tierkartei-root h3 {
+    font-family: 'Fraunces', serif;
+    margin: 0;
+    color: var(--forest);
+  }
+
+  #tierkartei-root .header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    margin-bottom: 22px;
+    border-bottom: 2px solid var(--forest);
+    padding-bottom: 14px;
+    gap: 16px;
+    flex-wrap: wrap;
+  }
+  #tierkartei-root .header h1 { font-size: 30px; font-weight: 700; letter-spacing: -0.01em; }
+  #tierkartei-root .header .sub { font-size: 12px; color: var(--ink-soft); font-family: 'IBM Plex Mono', monospace; letter-spacing: 0.04em; text-transform: uppercase; text-align: right; }
+
+  #tierkartei-root .tabs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-bottom: -1px;
+    position: relative;
+    z-index: 2;
+  }
+  #tierkartei-root .tab {
+    font-family: 'Fraunces', serif;
+    font-size: 14px;
+    font-weight: 600;
+    padding: 9px 18px 11px;
+    background: var(--paper-2);
+    border: 1px solid var(--line);
+    border-bottom: none;
+    border-radius: 6px 6px 0 0;
+    cursor: pointer;
+    color: var(--ink-soft);
+    transition: transform .12s ease, color .12s ease, background .12s ease;
+  }
+  #tierkartei-root .tab:hover { transform: translateY(-2px); color: var(--forest); }
+  #tierkartei-root .tab.active {
+    background: var(--paper);
+    color: var(--forest);
+    border-color: var(--forest);
+    transform: translateY(-1px);
+  }
+  #tierkartei-root .tab.add { color: var(--amber); border-style: dashed; }
+  #tierkartei-root .tab.pasture { color: var(--forest-2); border-color: var(--forest-2); background: var(--sage); }
+  #tierkartei-root .tab.pasture.active { background: var(--paper); }
+
+  #tierkartei-root .card {
+    background: var(--paper);
+    border: 1px solid var(--forest);
+    border-radius: 0 var(--card-radius) var(--card-radius) var(--card-radius);
+    padding: 26px 28px 30px;
+    position: relative;
+    box-shadow: 0 2px 0 rgba(47,69,54,0.08);
+  }
+  #tierkartei-root .punches { position: absolute; top: 12px; right: 16px; display: flex; gap: 6px; }
+  #tierkartei-root .punches span { width: 7px; height: 7px; border-radius: 50%; background: var(--paper); border: 1px solid var(--line); }
+
+  #tierkartei-root .empty { text-align: center; padding: 60px 20px; color: var(--ink-soft); }
+  #tierkartei-root .empty h2 { font-size: 22px; margin-bottom: 8px; color: var(--forest); }
+  #tierkartei-root .empty p { margin: 0 0 18px; font-size: 14px; }
+
+  #tierkartei-root .record-head {
+    display: flex; justify-content: space-between; align-items: flex-start; gap: 16px;
+    padding-bottom: 16px; margin-bottom: 16px; border-bottom: 1px dashed var(--line);
+  }
+  #tierkartei-root .record-head h2 { font-size: 26px; }
+  #tierkartei-root .species-badge {
+    display: inline-block; font-family: 'IBM Plex Mono', monospace; font-size: 11px;
+    letter-spacing: 0.05em; text-transform: uppercase; color: var(--forest);
+    background: var(--sage); padding: 3px 9px; border-radius: 3px; margin-top: 6px;
+  }
+  #tierkartei-root .icon-btn {
+    background: none; border: 1px solid var(--line); color: var(--ink-soft);
+    font-family: 'Inter', sans-serif; font-size: 12px; padding: 6px 12px; border-radius: 4px;
+    cursor: pointer; transition: all .12s ease;
+  }
+  #tierkartei-root .icon-btn:hover { border-color: var(--clay); color: var(--clay); }
+
+  #tierkartei-root .meta-grid {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 14px 20px; margin-bottom: 22px;
+  }
+  #tierkartei-root .meta-field label {
+    display: block; font-family: 'IBM Plex Mono', monospace; font-size: 10px; text-transform: uppercase;
+    letter-spacing: 0.06em; color: var(--ink-soft); margin-bottom: 3px;
+  }
+  #tierkartei-root .meta-field .val { font-size: 14.5px; color: var(--ink); }
+  #tierkartei-root .meta-field .val.empty-val { color: var(--ink-soft); font-style: italic; }
+
+  #tierkartei-root .section-title { display: flex; align-items: center; gap: 10px; margin: 26px 0 14px; }
+  #tierkartei-root .section-title h3 { font-size: 17px; }
+  #tierkartei-root .section-title .rule { flex: 1; height: 1px; background: var(--line); }
+
+  #tierkartei-root .log-list { display: flex; flex-direction: column; gap: 8px; margin-bottom: 16px; }
+  #tierkartei-root .log-row {
+    display: grid; align-items: center; gap: 12px; padding: 10px 12px;
+    background: var(--paper-2); border: 1px solid var(--line); border-radius: 4px; font-size: 13.5px;
+  }
+  #tierkartei-root .log-row.treatment { grid-template-columns: 92px 110px 1fr auto auto; }
+  #tierkartei-root .log-row.weight { grid-template-columns: 92px 90px 1fr auto; }
+  #tierkartei-root .log-row.pasture { grid-template-columns: 92px 1fr 110px auto; }
+  #tierkartei-root .log-row.doc { grid-template-columns: 1fr auto auto auto; }
+  #tierkartei-root .log-row.stool { grid-template-columns: 92px 1fr 130px auto; }
+
+  #tierkartei-root .log-row .date { font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: var(--forest); font-weight: 500; }
+  #tierkartei-root .log-row .type {
+    display: inline-block; font-size: 11px; font-family: 'IBM Plex Mono', monospace; text-transform: uppercase;
+    letter-spacing: 0.03em; padding: 3px 8px; border-radius: 3px; background: var(--forest); color: var(--paper); justify-self: start;
+  }
+  #tierkartei-root .log-row .desc { color: var(--ink); }
+  #tierkartei-root .log-row .weight-val { font-family: 'IBM Plex Mono', monospace; font-size: 13px; color: var(--ink); }
+  #tierkartei-root .log-row .next { font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: var(--ink-soft); white-space: nowrap; }
+  #tierkartei-root .log-row .next.due { color: var(--clay); font-weight: 600; }
+  #tierkartei-root .log-row .del {
+    background: none; border: none; color: var(--ink-soft); cursor: pointer; font-size: 15px; line-height: 1; padding: 2px 6px;
+  }
+  #tierkartei-root .log-row .del:hover { color: var(--clay); }
+  #tierkartei-root .log-row .filename { color: var(--ink); font-weight: 500; }
+  #tierkartei-root .log-row .filemeta { font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: var(--ink-soft); white-space: nowrap; }
+  #tierkartei-root .log-row .view-link {
+    font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: var(--forest); background: none;
+    border: 1px solid var(--forest-2); padding: 4px 9px; border-radius: 3px; cursor: pointer; text-decoration: none; white-space: nowrap;
+  }
+  #tierkartei-root .log-row .view-link:hover { background: var(--sage); }
+
+  #tierkartei-root .no-entries { font-size: 13px; color: var(--ink-soft); font-style: italic; padding: 10px 2px 4px; }
+
+  #tierkartei-root form.inline-form {
+    background: var(--paper-2); border: 1px solid var(--line); border-radius: 4px; padding: 16px; display: grid; gap: 10px;
+  }
+  #tierkartei-root .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  #tierkartei-root .form-row.full { grid-template-columns: 1fr; }
+  #tierkartei-root .form-row.three { grid-template-columns: 130px 1fr 130px; }
+  #tierkartei-root label.f-label {
+    font-family: 'IBM Plex Mono', monospace; font-size: 10px; text-transform: uppercase;
+    letter-spacing: 0.05em; color: var(--ink-soft); display: block; margin-bottom: 4px;
+  }
+  #tierkartei-root input, #tierkartei-root select, #tierkartei-root textarea {
+    width: 100%; font-family: 'Inter', sans-serif; font-size: 13.5px; padding: 8px 10px;
+    border: 1px solid var(--line); border-radius: 3px; background: var(--paper); color: var(--ink);
+  }
+  #tierkartei-root input:focus, #tierkartei-root select:focus, #tierkartei-root textarea:focus {
+    outline: 2px solid var(--forest-2); outline-offset: 1px;
+  }
+  #tierkartei-root textarea { resize: vertical; min-height: 44px; font-family: 'Inter', sans-serif; }
+  #tierkartei-root .hint { font-size: 11.5px; color: var(--ink-soft); margin-top: -4px; }
+
+  #tierkartei-root .btn-row { display: flex; gap: 8px; margin-top: 4px; flex-wrap: wrap; }
+  #tierkartei-root .btn {
+    font-family: 'Inter', sans-serif; font-size: 13px; font-weight: 600; padding: 8px 16px; border-radius: 4px;
+    border: 1px solid var(--forest); background: var(--forest); color: var(--paper); cursor: pointer; transition: opacity .12s ease;
+  }
+  #tierkartei-root .btn:hover { opacity: 0.88; }
+  #tierkartei-root .btn.secondary { background: transparent; color: var(--forest); }
+  #tierkartei-root .btn.amber { background: var(--amber); border-color: var(--amber); }
+
+  #tierkartei-root .toggle-add {
+    font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: var(--forest); background: none;
+    border: 1px dashed var(--forest-2); padding: 8px 14px; border-radius: 4px; cursor: pointer; margin-bottom: 10px;
+  }
+  #tierkartei-root .toggle-add:hover { background: var(--sage); }
+
+  #tierkartei-root .data-actions { display: flex; gap: 8px; margin-top: 8px; justify-content: flex-end; }
+  #tierkartei-root .data-actions button {
+    font-family: 'IBM Plex Mono', monospace; font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.04em;
+    background: none; border: 1px solid var(--line); color: var(--ink-soft); padding: 5px 10px; border-radius: 3px; cursor: pointer;
+  }
+  #tierkartei-root .data-actions button:hover { border-color: var(--forest-2); color: var(--forest); }
+
+  #tierkartei-root .pasture-current {
+    display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 14px;
+    background: var(--sage); border: 1px solid var(--forest-2); border-radius: 4px; padding: 16px 20px; margin-bottom: 20px;
+  }
+  #tierkartei-root .pasture-current.overdue { background: #F0DCD3; border-color: var(--clay); }
+  #tierkartei-root .pasture-current .name { font-family: 'Fraunces', serif; font-size: 22px; font-weight: 700; color: var(--forest); }
+  #tierkartei-root .pasture-current.overdue .name { color: var(--clay); }
+  #tierkartei-root .pasture-current .meta { font-family: 'IBM Plex Mono', monospace; font-size: 11.5px; color: var(--ink-soft); }
+  #tierkartei-root .pasture-current.overdue .meta.due { color: var(--clay); font-weight: 600; }
+
+  #tierkartei-root .banner-warning {
+    display: flex; align-items: center; gap: 10px; background: #F0DCD3; border: 1px solid var(--clay);
+    color: var(--clay); font-size: 13px; font-weight: 600; padding: 10px 14px; border-radius: 4px; margin-bottom: 16px;
+  }
+
+  @media (max-width: 640px) {
+    #tierkartei-root .log-row.treatment, #tierkartei-root .log-row.weight,
+    #tierkartei-root .log-row.pasture, #tierkartei-root .log-row.doc,
+    #tierkartei-root .log-row.stool { grid-template-columns: 1fr; gap: 4px; }
+    #tierkartei-root .log-row .del { justify-self: end; }
+    #tierkartei-root .form-row, #tierkartei-root .form-row.three { grid-template-columns: 1fr; }
+    #tierkartei-root .header .sub { text-align: left; }
+    #tierkartei-root .data-actions { justify-content: flex-start; }
+  }
+</style>
+
+<div id="tierkartei-root">
+  <div class="wrap">
+    <div class="header">
+      <h1>Tierkartei</h1>
+      <div>
+        <div class="sub" id="tk-status">wird geladen &hellip;</div>
+        <div class="sub" style="text-transform:none; font-size:10.5px; margin-top:2px;">eigenst&auml;ndige Version &ndash; Daten bleiben nur in diesem Browser</div>
+        <div class="data-actions">
+          <button type="button" id="tk-export">Sichern (JSON)</button>
+          <button type="button" id="tk-import">Wiederherstellen</button>
+        </div>
+        <input type="file" id="tk-import-file" accept="application/json" style="display:none" />
+      </div>
+    </div>
+    <div class="tabs" id="tk-tabs"></div>
+    <div class="card" id="tk-card">
+      <div class="punches"><span></span><span></span><span></span></div>
+      <div id="tk-content"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  const TREATMENT_TYPES = ["Impfung", "Wurmkur", "Tierarztbesuch", "Medikament", "Vitamine", "Operation", "Sonstiges"];
+  const STORAGE_KEY = "tierkartei-data";
+  const PASTURE_ROTATION_DAYS = 28;
+  const MAX_DOC_BYTES = 1.5 * 1024 * 1024; // localStorage hat insgesamt nur ca. 5-10 MB Platz
+
+  let state = { animals: [], pastures: [], selectedId: null };
+  let view = "animal";
+  let addingTreatmentFor = null;
+  let addingWeightFor = null;
+  let addingDocFor = null;
+  let addingStoolFor = null;
+  let addingPasture = false;
+  let showingAnimalForm = false;
+
+  const tabsEl = document.getElementById('tk-tabs');
+  const contentEl = document.getElementById('tk-content');
+  const statusEl = document.getElementById('tk-status');
+
+  function uid(){ return Date.now().toString(36) + Math.random().toString(36).slice(2,7); }
+
+  function fmtDate(d){
+    if(!d) return "";
+    const parts = d.split("-");
+    if(parts.length !== 3) return d;
+    return parts[2] + "." + parts[1] + "." + parts[0];
+  }
+  function addDays(dateStr, days){
+    const d = new Date(dateStr);
+    d.setDate(d.getDate() + days);
+    return d.toISOString().slice(0,10);
+  }
+  function isOverdue(dateStr){
+    if(!dateStr) return false;
+    const today = new Date(); today.setHours(0,0,0,0);
+    const d = new Date(dateStr);
+    return d <= today;
+  }
+  function formatBytes(n){
+    if(n < 1024) return n + " B";
+    if(n < 1024*1024) return Math.round(n/1024) + " KB";
+    return (n/(1024*1024)).toFixed(1) + " MB";
+  }
+
+  async function load(){
+    try{
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if(raw){ state = JSON.parse(raw); }
+      statusEl.textContent = "gespeichert (lokal)";
+    }catch(e){
+      state = { animals: [], pastures: [], selectedId: null };
+      statusEl.textContent = "neue Kartei";
+    }
+    if(!state.animals) state.animals = [];
+    if(!state.pastures) state.pastures = [];
+    state.animals.forEach(a => {
+      if(!a.treatments) a.treatments = [];
+      if(!a.weights) a.weights = [];
+      if(!a.documents) a.documents = [];
+      if(!a.stoolSamples) a.stoolSamples = [];
+    });
+    if(state.animals.length && !state.selectedId){ state.selectedId = state.animals[0].id; }
+    if(!state.animals.length) view = "pasture";
+    render();
+  }
+
+  async function save(){
+    try{
+      statusEl.textContent = "speichere \u2026";
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+      statusEl.textContent = "gespeichert (lokal)";
+    }catch(e){
+      statusEl.textContent = "speichern fehlgeschlagen (Speicher voll?)";
+      console.error(e);
+    }
+  }
+
+  function getSelected(){ return state.animals.find(a => a.id === state.selectedId) || null; }
+
+  function render(){
+    renderTabs();
+    if(view === "pasture" && !showingAnimalForm){ renderPasture(); } else { renderAnimal(); }
+  }
+
+  function renderTabs(){
+    tabsEl.innerHTML = "";
+    const pastureTab = document.createElement("div");
+    pastureTab.className = "tab pasture" + (view === "pasture" && !showingAnimalForm ? " active" : "");
+    pastureTab.textContent = "Weidemanagement";
+    pastureTab.onclick = () => { view = "pasture"; showingAnimalForm = false; render(); };
+    tabsEl.appendChild(pastureTab);
+
+    state.animals.forEach(a => {
+      const tab = document.createElement("div");
+      tab.className = "tab" + (view === "animal" && !showingAnimalForm && a.id === state.selectedId ? " active" : "");
+      tab.textContent = a.name || "(ohne Namen)";
+      tab.onclick = () => {
+        view = "animal"; state.selectedId = a.id; showingAnimalForm = false;
+        addingTreatmentFor = null; addingWeightFor = null; addingDocFor = null; addingStoolFor = null;
+        render();
+      };
+      tabsEl.appendChild(tab);
+    });
+
+    const addTab = document.createElement("div");
+    addTab.className = "tab add" + (showingAnimalForm ? " active" : "");
+    addTab.textContent = "+ Neues Tier";
+    addTab.onclick = () => { showingAnimalForm = true; render(); };
+    tabsEl.appendChild(addTab);
+  }
+
+  // ---------- Weidemanagement ----------
+  function renderPasture(){
+    contentEl.innerHTML = "";
+    const head = document.createElement("div");
+    head.className = "record-head";
+    head.innerHTML = `<div><h2>Weidemanagement</h2></div>`;
+    contentEl.appendChild(head);
+
+    const sorted = [...state.pastures].sort((a,b) => (b.start||"").localeCompare(a.start||""));
+    const current = sorted[0] || null;
+
+    if(current){
+      const dueDate = addDays(current.start, PASTURE_ROTATION_DAYS);
+      const overdue = isOverdue(dueDate);
+      if(overdue){
+        const banner = document.createElement("div");
+        banner.className = "banner-warning";
+        banner.textContent = "Weidewechsel f\u00e4llig \u2014 die aktuelle Weide wird bereits seit \u00fcber 4 Wochen genutzt.";
+        contentEl.appendChild(banner);
+      }
+      const cur = document.createElement("div");
+      cur.className = "pasture-current" + (overdue ? " overdue" : "");
+      cur.innerHTML = `
+        <div><div class="meta">Aktuelle Weide</div><div class="name">${escapeHtml(current.name || "(ohne Namen)")}</div></div>
+        <div>
+          <div class="meta">seit ${escapeHtml(fmtDate(current.start))}</div>
+          <div class="meta due">${overdue ? "Wechsel f\u00e4llig seit " + escapeHtml(fmtDate(dueDate)) : "n\u00e4chster Wechsel: " + escapeHtml(fmtDate(dueDate))}</div>
+        </div>`;
+      contentEl.appendChild(cur);
+    } else {
+      contentEl.appendChild(noEntries("Noch keine Weide eingetragen."));
+    }
+
+    contentEl.appendChild(sectionTitleEl("Verlauf"));
+    const list = document.createElement("div");
+    list.className = "log-list";
+    if(sorted.length === 0){ list.appendChild(noEntries("Noch keine weiteren Eintr\u00e4ge.")); }
+    sorted.slice(1).forEach(p => {
+      const row = document.createElement("div");
+      row.className = "log-row pasture";
+      row.innerHTML = `
+        <div class="date">${escapeHtml(fmtDate(p.start))}</div>
+        <div class="desc">${escapeHtml(p.name || "")}${p.notes ? " \u2014 " + escapeHtml(p.notes) : ""}</div>
+        <div class="next">bis ${escapeHtml(fmtDate(addDays(p.start, PASTURE_ROTATION_DAYS)))}</div>`;
+      const delBtn = document.createElement("button");
+      delBtn.className = "del"; delBtn.innerHTML = "&times;"; delBtn.title = "L\u00f6schen";
+      delBtn.onclick = () => { state.pastures = state.pastures.filter(x => x.id !== p.id); save(); render(); };
+      row.appendChild(delBtn);
+      list.appendChild(row);
+    });
+    contentEl.appendChild(list);
+
+    if(addingPasture){ contentEl.appendChild(buildPastureForm()); }
+    else { contentEl.appendChild(toggleBtn("+ Weide eintragen / wechseln", () => { addingPasture = true; render(); })); }
+  }
+
+  function buildPastureForm(){
+    const form = document.createElement("form");
+    form.className = "inline-form";
+    const today = new Date().toISOString().slice(0,10);
+    form.innerHTML = `
+      <div class="form-row">
+        <div><label class="f-label">Weide / Bezeichnung</label><input type="text" name="name" required placeholder="z.B. Weide Nord" /></div>
+        <div><label class="f-label">Wechsel am</label><input type="date" name="start" value="${today}" required /></div>
+      </div>
+      <div class="form-row full"><div><label class="f-label">Notizen</label><input type="text" name="notes" placeholder="optional" /></div></div>
+      <div class="hint">Der n\u00e4chste f\u00e4llige Wechsel wird automatisch nach ${PASTURE_ROTATION_DAYS} Tagen berechnet.</div>
+      <div class="btn-row">
+        <button type="submit" class="btn">Eintragen</button>
+        <button type="button" class="btn secondary" id="tk-cancel-pasture">Abbrechen</button>
+      </div>`;
+    form.onsubmit = (e) => {
+      e.preventDefault();
+      const fd = new FormData(form);
+      state.pastures.push({ id: uid(), name: fd.get("name").trim(), start: fd.get("start"), notes: fd.get("notes").trim() });
+      addingPasture = false;
+      save(); render();
+    };
+    form.querySelector("#tk-cancel-pasture").onclick = () => { addingPasture = false; render(); };
+    return form;
+  }
+
+  // ---------- Tier-Ansicht ----------
+  function renderAnimal(){
+    contentEl.innerHTML = "";
+    if(showingAnimalForm){ contentEl.appendChild(buildAnimalForm()); return; }
+
+    const animal = getSelected();
+    if(!animal){
+      const empty = document.createElement("div");
+      empty.className = "empty";
+      empty.innerHTML = `<h2>Noch keine Tiere erfasst</h2><p>Lege dein erstes Tier an, um Behandlungen zu dokumentieren.</p>`;
+      const btn = document.createElement("button");
+      btn.className = "btn amber"; btn.textContent = "Erstes Tier anlegen";
+      btn.onclick = () => { showingAnimalForm = true; render(); };
+      empty.appendChild(btn);
+      contentEl.appendChild(empty);
+      return;
+    }
+
+    const head = document.createElement("div");
+    head.className = "record-head";
+    head.innerHTML = `
+      <div>
+        <h2>${escapeHtml(animal.name || "(ohne Namen)")}</h2>
+        <span class="species-badge">${escapeHtml(animal.species || "Art unbekannt")}</span>
+      </div>`;
+    const delBtn = document.createElement("button");
+    delBtn.className = "icon-btn"; delBtn.textContent = "Tier l\u00f6schen";
+    delBtn.onclick = () => {
+      if(confirm(`"${animal.name}" inklusive aller Eintr\u00e4ge wirklich l\u00f6schen?`)){
+        (animal.documents || []).forEach(d => { try{ localStorage.removeItem(`tierkartei-doc-${d.id}`); }catch(e){} });
+        state.animals = state.animals.filter(a => a.id !== animal.id);
+        state.selectedId = state.animals.length ? state.animals[0].id : null;
+        save(); render();
+      }
+    };
+    head.appendChild(delBtn);
+    contentEl.appendChild(head);
+
+    const latestWeight = [...(animal.weights||[])].sort((a,b) => (b.date||"").localeCompare(a.date||""))[0];
+    const nextStool = [...(animal.stoolSamples||[])]
+      .filter(s => s.next)
+      .sort((a,b) => (b.date||"").localeCompare(a.date||""))[0];
+
+    const metaGrid = document.createElement("div");
+    metaGrid.className = "meta-grid";
+    metaGrid.appendChild(metaField("Rasse", animal.breed));
+    metaGrid.appendChild(metaField("Geburtsdatum", animal.birthdate ? fmtDate(animal.birthdate) : ""));
+    metaGrid.appendChild(metaField("Aktuelles Gewicht", latestWeight ? latestWeight.weight + " kg (" + fmtDate(latestWeight.date) + ")" : ""));
+    metaGrid.appendChild(metaField("Notizen", animal.notes));
+    contentEl.appendChild(metaGrid);
+
+    if(nextStool && isOverdue(nextStool.next)){
+      const banner = document.createElement("div");
+      banner.className = "banner-warning";
+      banner.textContent = "N\u00e4chste Kotprobe f\u00fcr " + (animal.name || "dieses Tier") + " ist f\u00e4llig (" + fmtDate(nextStool.next) + ").";
+      contentEl.appendChild(banner);
+    }
+
+    // Behandlungen
+    contentEl.appendChild(sectionTitleEl("Behandlungsverlauf"));
+    const tList = document.createElement("div"); tList.className = "log-list";
+    const tSorted = [...(animal.treatments || [])].sort((a,b) => (b.date||"").localeCompare(a.date||""));
+    if(tSorted.length === 0){ tList.appendChild(noEntries("Noch keine Behandlungen eingetragen.")); }
+    else {
+      tSorted.forEach(t => {
+        const row = document.createElement("div"); row.className = "log-row treatment";
+        const nextClass = t.next && isOverdue(t.next) ? "next due" : "next";
+        row.innerHTML = `
+          <div class="date">${escapeHtml(fmtDate(t.date))}</div>
+          <div class="type">${escapeHtml(t.type || "Sonstiges")}</div>
+          <div class="desc">${escapeHtml(t.desc || "")}</div>
+          <div class="${nextClass}">${t.next ? "n\u00e4chster: " + escapeHtml(fmtDate(t.next)) : ""}</div>`;
+        const del = document.createElement("button");
+        del.className = "del"; del.innerHTML = "&times;"; del.title = "L\u00f6schen";
+        del.onclick = () => { animal.treatments = animal.treatments.filter(x => x.id !== t.id); save(); render(); };
+        row.appendChild(del); tList.appendChild(row);
+      });
+    }
+    contentEl.appendChild(tList);
+    if(addingTreatmentFor === animal.id){ contentEl.appendChild(buildTreatmentForm(animal)); }
+    else { contentEl.appendChild(toggleBtn("+ Behandlung eintragen", () => { addingTreatmentFor = animal.id; render(); })); }
+
+    // Kotproben
+    contentEl.appendChild(sectionTitleEl("Kotproben"));
+    const sList = document.createElement("div"); sList.className = "log-list";
+    const sSorted = [...(animal.stoolSamples || [])].sort((a,b) => (b.date||"").localeCompare(a.date||""));
+    if(sSorted.length === 0){ sList.appendChild(noEntries("Noch keine Kotproben eingetragen.")); }
+    else {
+      sSorted.forEach(s => {
+        const row = document.createElement("div"); row.className = "log-row stool";
+        const nextClass = s.next && isOverdue(s.next) ? "next due" : "next";
+        row.innerHTML = `
+          <div class="date">${escapeHtml(fmtDate(s.date))}</div>
+          <div class="desc">${escapeHtml(s.result || "")}</div>
+          <div class="${nextClass}">${s.next ? "n\u00e4chste Probe: " + escapeHtml(fmtDate(s.next)) : ""}</div>`;
+        const del = document.createElement("button");
+        del.className = "del"; del.innerHTML = "&times;"; del.title = "L\u00f6schen";
+        del.onclick = () => { animal.stoolSamples = animal.stoolSamples.filter(x => x.id !== s.id); save(); render(); };
+        row.appendChild(del); sList.appendChild(row);
+      });
+    }
+    contentEl.appendChild(sList);
+    if(addingStoolFor === animal.id){ contentEl.appendChild(buildStoolForm(animal)); }
+    else { contentEl.appendChild(toggleBtn("+ Kotprobe eintragen", () => { addingStoolFor = animal.id; render(); })); }
+
+    // Gewicht
+    contentEl.appendChild(sectionTitleEl("Gewichtsverlauf"));
+    const wList = document.createElement("div"); wList.className = "log-list";
+    const wSorted = [...(animal.weights || [])].sort((a,b) => (b.date||"").localeCompare(a.date||""));
+    if(wSorted.length === 0){ wList.appendChild(noEntries("Noch keine Gewichte eingetragen.")); }
+    else {
+      wSorted.forEach(w => {
+        const row = document.createElement("div"); row.className = "log-row weight";
+        row.innerHTML = `
+          <div class="date">${escapeHtml(fmtDate(w.date))}</div>
+          <div class="weight-val">${escapeHtml(String(w.weight))} kg</div>
+          <div class="desc">${escapeHtml(w.notes || "")}</div>`;
+        const del = document.createElement("button");
+        del.className = "del"; del.innerHTML = "&times;"; del.title = "L\u00f6schen";
+        del.onclick = () => { animal.weights = animal.weights.filter(x => x.id !== w.id); save(); render(); };
+        row.appendChild(del); wList.appendChild(row);
+      });
+    }
+    contentEl.appendChild(wList);
+    if(addingWeightFor === animal.id){ contentEl.appendChild(buildWeightForm(animal)); }
+    else { contentEl.appendChild(toggleBtn("+ Gewicht eintragen", () => { addingWeightFor = animal.id; render(); })); }
+
+    // Dateien
+    contentEl.appendChild(sectionTitleEl("Dateien (z.B. PDF vom Tierarzt)"));
+    const dList = document.createElement("div"); dList.className = "log-list";
+    const docs = animal.documents || [];
+    if(docs.length === 0){ dList.appendChild(noEntries("Noch keine Dateien hochgeladen.")); }
+    else {
+      docs.forEach(d => {
+        const row = document.createElement("div"); row.className = "log-row doc";
+        row.innerHTML = `
+          <div class="filename">${escapeHtml(d.filename)}</div>
+          <div class="filemeta">${escapeHtml(fmtDate(d.dateAdded))} \u00b7 ${escapeHtml(formatBytes(d.size))}</div>`;
+        const viewBtn = document.createElement("button");
+        viewBtn.className = "view-link"; viewBtn.textContent = "\u00d6ffnen";
+        viewBtn.onclick = async () => {
+          viewBtn.textContent = "l\u00e4dt \u2026";
+          try{
+            const raw = localStorage.getItem(`tierkartei-doc-${d.id}`);
+            if(raw){
+              const w = window.open();
+              if(w){
+                if(d.mimetype === "application/pdf" || d.mimetype.startsWith("image/")){ w.location.href = raw; }
+                else { const a = w.document.createElement("a"); a.href = raw; a.download = d.filename; a.click(); }
+              }
+            }
+          }catch(e){ alert("Datei konnte nicht geladen werden."); }
+          viewBtn.textContent = "\u00d6ffnen";
+        };
+        row.appendChild(viewBtn);
+        const del = document.createElement("button");
+        del.className = "del"; del.innerHTML = "&times;"; del.title = "L\u00f6schen";
+        del.onclick = () => {
+          try{ localStorage.removeItem(`tierkartei-doc-${d.id}`); }catch(e){}
+          animal.documents = animal.documents.filter(x => x.id !== d.id);
+          save(); render();
+        };
+        row.appendChild(del); dList.appendChild(row);
+      });
+    }
+    contentEl.appendChild(dList);
+    if(addingDocFor === animal.id){ contentEl.appendChild(buildDocForm(animal)); }
+    else { contentEl.appendChild(toggleBtn("+ Datei hochladen", () => { addingDocFor = animal.id; render(); })); }
+  }
+
+  function sectionTitleEl(title){
+    const el = document.createElement("div"); el.className = "section-title";
+    el.innerHTML = `<h3>${escapeHtml(title)}</h3><div class="rule"></div>`;
+    return el;
+  }
+  function noEntries(text){ const el = document.createElement("div"); el.className = "no-entries"; el.textContent = text; return el; }
+  function toggleBtn(label, onClick){
+    const btn = document.createElement("button"); btn.className = "toggle-add"; btn.textContent = label; btn.onclick = onClick; return btn;
+  }
+  function metaField(label, value){
+    const div = document.createElement("div"); div.className = "meta-field";
+    div.innerHTML = `<label>${escapeHtml(label)}</label><div class="val${value ? "" : " empty-val"}">${escapeHtml(value || "\u2014")}</div>`;
+    return div;
+  }
+
+  function buildAnimalForm(){
+    const form = document.createElement("form");
+    form.className = "inline-form";
+    form.innerHTML = `
+      <div class="form-row">
+        <div><label class="f-label">Name</label><input type="text" name="name" required placeholder="z.B. Bella" /></div>
+        <div><label class="f-label">Tierart</label><input type="text" name="species" placeholder="z.B. Hund, Katze, Pferd" /></div>
+      </div>
+      <div class="form-row">
+        <div><label class="f-label">Rasse</label><input type="text" name="breed" placeholder="optional" /></div>
+        <div><label class="f-label">Geburtsdatum</label><input type="date" name="birthdate" /></div>
+      </div>
+      <div class="form-row full"><div><label class="f-label">Notizen</label><textarea name="notes" placeholder="Besonderheiten, Futter, Charakter, ..."></textarea></div></div>
+      <div class="btn-row">
+        <button type="submit" class="btn">Tier speichern</button>
+        <button type="button" class="btn secondary" id="tk-cancel-animal">Abbrechen</button>
+      </div>`;
+    form.onsubmit = (e) => {
+      e.preventDefault();
+      const fd = new FormData(form);
+      const newAnimal = {
+        id: uid(), name: fd.get("name").trim(), species: fd.get("species").trim(),
+        breed: fd.get("breed").trim(), birthdate: fd.get("birthdate"), notes: fd.get("notes").trim(),
+        treatments: [], weights: [], documents: [], stoolSamples: []
+      };
+      state.animals.push(newAnimal);
+      state.selectedId = newAnimal.id;
+      view = "animal"; showingAnimalForm = false;
+      save(); render();
+    };
+    form.querySelector("#tk-cancel-animal").onclick = () => { showingAnimalForm = false; render(); };
+    return form;
+  }
+
+  function buildTreatmentForm(animal){
+    const form = document.createElement("form");
+    form.className = "inline-form";
+    const options = TREATMENT_TYPES.map(t => `<option value="${t}">${t}</option>`).join("");
+    form.innerHTML = `
+      <div class="form-row three">
+        <div><label class="f-label">Datum</label><input type="date" name="date" required /></div>
+        <div><label class="f-label">Art</label><select name="type">${options}</select></div>
+        <div><label class="f-label">N\u00e4chster Termin</label><input type="date" name="next" /></div>
+      </div>
+      <div class="form-row full"><div><label class="f-label">Beschreibung</label><input type="text" name="desc" placeholder="z.B. Tollwutimpfung, Zeckenmittel, ..." /></div></div>
+      <div class="btn-row">
+        <button type="submit" class="btn">Eintragen</button>
+        <button type="button" class="btn secondary" id="tk-cancel-treatment">Abbrechen</button>
+      </div>`;
+    form.onsubmit = (e) => {
+      e.preventDefault();
+      const fd = new FormData(form);
+      if(!animal.treatments) animal.treatments = [];
+      animal.treatments.push({ id: uid(), date: fd.get("date"), type: fd.get("type"), next: fd.get("next") || "", desc: fd.get("desc").trim() });
+      addingTreatmentFor = null;
+      save(); render();
+    };
+    form.querySelector("#tk-cancel-treatment").onclick = () => { addingTreatmentFor = null; render(); };
+    return form;
+  }
+
+  function buildStoolForm(animal){
+    const form = document.createElement("form");
+    form.className = "inline-form";
+    const today = new Date().toISOString().slice(0,10);
+    form.innerHTML = `
+      <div class="form-row">
+        <div><label class="f-label">Datum der Probe</label><input type="date" name="date" value="${today}" required /></div>
+        <div><label class="f-label">N\u00e4chste Probe f\u00e4llig am</label><input type="date" name="next" /></div>
+      </div>
+      <div class="form-row full"><div><label class="f-label">Befund</label><textarea name="result" placeholder="z.B. unauff\u00e4llig, Wurmeier nachgewiesen, ..."></textarea></div></div>
+      <div class="btn-row">
+        <button type="submit" class="btn">Eintragen</button>
+        <button type="button" class="btn secondary" id="tk-cancel-stool">Abbrechen</button>
+      </div>`;
+    form.onsubmit = (e) => {
+      e.preventDefault();
+      const fd = new FormData(form);
+      if(!animal.stoolSamples) animal.stoolSamples = [];
+      animal.stoolSamples.push({ id: uid(), date: fd.get("date"), result: fd.get("result").trim(), next: fd.get("next") || "" });
+      addingStoolFor = null;
+      save(); render();
+    };
+    form.querySelector("#tk-cancel-stool").onclick = () => { addingStoolFor = null; render(); };
+    return form;
+  }
+
+  function buildWeightForm(animal){
+    const form = document.createElement("form");
+    form.className = "inline-form";
+    const today = new Date().toISOString().slice(0,10);
+    form.innerHTML = `
+      <div class="form-row">
+        <div><label class="f-label">Datum</label><input type="date" name="date" value="${today}" required /></div>
+        <div><label class="f-label">Gewicht (kg)</label><input type="number" step="0.1" min="0" name="weight" required placeholder="z.B. 4.2" /></div>
+      </div>
+      <div class="form-row full"><div><label class="f-label">Notizen</label><input type="text" name="notes" placeholder="optional" /></div></div>
+      <div class="btn-row">
+        <button type="submit" class="btn">Eintragen</button>
+        <button type="button" class="btn secondary" id="tk-cancel-weight">Abbrechen</button>
+      </div>`;
+    form.onsubmit = (e) => {
+      e.preventDefault();
+      const fd = new FormData(form);
+      if(!animal.weights) animal.weights = [];
+      animal.weights.push({ id: uid(), date: fd.get("date"), weight: parseFloat(fd.get("weight")), notes: fd.get("notes").trim() });
+      addingWeightFor = null;
+      save(); render();
+    };
+    form.querySelector("#tk-cancel-weight").onclick = () => { addingWeightFor = null; render(); };
+    return form;
+  }
+
+  function buildDocForm(animal){
+    const form = document.createElement("form");
+    form.className = "inline-form";
+    form.innerHTML = `
+      <div class="form-row full"><div><label class="f-label">Datei (PDF oder Bild, max. ${formatBytes(MAX_DOC_BYTES)})</label>
+      <input type="file" name="file" accept="application/pdf,image/*" required /></div></div>
+      <div class="hint" id="tk-doc-hint"></div>
+      <div class="btn-row">
+        <button type="submit" class="btn">Hochladen</button>
+        <button type="button" class="btn secondary" id="tk-cancel-doc">Abbrechen</button>
+      </div>`;
+    form.onsubmit = (e) => {
+      e.preventDefault();
+      const fileInput = form.querySelector('input[name="file"]');
+      const file = fileInput.files[0];
+      const hint = form.querySelector("#tk-doc-hint");
+      if(!file) return;
+      if(file.size > MAX_DOC_BYTES){
+        hint.textContent = "Diese Datei ist zu gro\u00df (" + formatBytes(file.size) + "). Bitte eine kleinere Datei w\u00e4hlen.";
+        hint.style.color = "var(--clay)";
+        return;
+      }
+      const reader = new FileReader();
+      reader.onload = async () => {
+        const docId = uid();
+        try{
+          hint.textContent = "l\u00e4dt hoch \u2026"; hint.style.color = "";
+          localStorage.setItem(`tierkartei-doc-${docId}`, reader.result);
+          if(!animal.documents) animal.documents = [];
+          animal.documents.push({ id: docId, filename: file.name, mimetype: file.type || "application/octet-stream", size: file.size, dateAdded: new Date().toISOString().slice(0,10) });
+          addingDocFor = null;
+          save(); render();
+        }catch(err){
+          hint.textContent = "Hochladen fehlgeschlagen \u2013 vermutlich ist der lokale Speicher voll.";
+          hint.style.color = "var(--clay)";
+        }
+      };
+      reader.readAsDataURL(file);
+    };
+    form.querySelector("#tk-cancel-doc").onclick = () => { addingDocFor = null; render(); };
+    return form;
+  }
+
+  function setupDataActions(){
+    const exportBtn = document.getElementById('tk-export');
+    const importBtn = document.getElementById('tk-import');
+    const importFile = document.getElementById('tk-import-file');
+
+    exportBtn.onclick = async () => {
+      const originalLabel = exportBtn.textContent;
+      exportBtn.textContent = "sammle Daten \u2026"; exportBtn.disabled = true;
+      try{
+        const bundle = JSON.parse(JSON.stringify(state));
+        for(const animal of bundle.animals){
+          for(const doc of (animal.documents || [])){
+            try{ doc.data = localStorage.getItem(`tierkartei-doc-${doc.id}`); }
+            catch(e){ doc.data = null; }
+          }
+        }
+        const blob = new Blob([JSON.stringify(bundle, null, 2)], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        const today = new Date().toISOString().slice(0,10);
+        a.href = url; a.download = `tierkartei-sicherung-${today}.json`;
+        document.body.appendChild(a); a.click(); document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+      } finally {
+        exportBtn.textContent = originalLabel; exportBtn.disabled = false;
+      }
+    };
+
+    importBtn.onclick = () => importFile.click();
+
+    importFile.onchange = (e) => {
+      const file = e.target.files[0];
+      if(!file) return;
+      const reader = new FileReader();
+      reader.onload = async () => {
+        try{
+          const parsed = JSON.parse(reader.result);
+          if(!parsed || !Array.isArray(parsed.animals)) throw new Error('ungueltiges Format');
+          if(!confirm('Diese Sicherung einspielen? Die aktuell angezeigten Daten werden dadurch ersetzt.')){ importFile.value = ''; return; }
+          statusEl.textContent = "spiele Sicherung ein \u2026";
+          for(const animal of parsed.animals){
+            for(const doc of (animal.documents || [])){
+              if(doc.data){ try{ localStorage.setItem(`tierkartei-doc-${doc.id}`, doc.data); }catch(e){} delete doc.data; }
+            }
+          }
+          state = parsed;
+          if(!state.pastures) state.pastures = [];
+          state.animals.forEach(a => {
+            if(!a.treatments) a.treatments = [];
+            if(!a.weights) a.weights = [];
+            if(!a.documents) a.documents = [];
+            if(!a.stoolSamples) a.stoolSamples = [];
+          });
+          if(state.animals.length && !state.animals.find(a => a.id === state.selectedId)){ state.selectedId = state.animals[0].id; }
+          await save();
+          render();
+        }catch(err){
+          alert('Diese Datei sieht nicht wie eine g\u00fcltige Tierkartei-Sicherung aus.');
+        }
+        importFile.value = '';
+      };
+      reader.readAsText(file);
+    };
+  }
+
+  function escapeHtml(str){
+    if(str === undefined || str === null) return "";
+    return String(str).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+  }
+
+  setupDataActions();
+  load();
+})();
+</script>
