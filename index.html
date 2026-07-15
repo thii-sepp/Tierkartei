@@ -97,12 +97,33 @@
     display: flex; justify-content: space-between; align-items: flex-start; gap: 16px;
     padding-bottom: 16px; margin-bottom: 16px; border-bottom: 1px dashed var(--line);
   }
+  #tierkartei-root .record-head-info { display: flex; align-items: center; gap: 14px; }
+  #tierkartei-root .animal-photo {
+    width: 64px; height: 64px; border-radius: 50%; object-fit: cover;
+    border: 2px solid var(--forest); background: var(--sage); flex-shrink: 0;
+  }
+  #tierkartei-root .animal-photo-placeholder {
+    width: 64px; height: 64px; border-radius: 50%; flex-shrink: 0;
+    background: var(--sage); border: 2px solid var(--forest-2);
+    display: flex; align-items: center; justify-content: center;
+    font-family: 'Fraunces', serif; font-size: 24px; font-weight: 700; color: var(--forest-2);
+  }
   #tierkartei-root .record-head h2 { font-size: 26px; }
   #tierkartei-root .species-badge {
     display: inline-block; font-family: 'IBM Plex Mono', monospace; font-size: 11px;
     letter-spacing: 0.05em; text-transform: uppercase; color: var(--forest);
     background: var(--sage); padding: 3px 9px; border-radius: 3px; margin-top: 6px;
   }
+  #tierkartei-root .photo-edit-row { display: flex; align-items: center; gap: 14px; margin-bottom: 4px; }
+  #tierkartei-root .photo-edit-row .animal-photo,
+  #tierkartei-root .photo-edit-row .animal-photo-placeholder { width: 56px; height: 56px; }
+  #tierkartei-root .photo-edit-controls { display: flex; flex-direction: column; gap: 6px; }
+  #tierkartei-root .photo-edit-controls label.f-label { margin-bottom: 0; }
+  #tierkartei-root .remove-photo-check {
+    display: inline-flex; align-items: center; gap: 5px;
+    font-family: 'IBM Plex Mono', monospace; font-size: 10.5px; color: var(--ink-soft); cursor: pointer;
+  }
+  #tierkartei-root .remove-photo-check input { width: 13px; height: 13px; margin: 0; cursor: pointer; }
   #tierkartei-root .icon-btn {
     background: none; border: 1px solid var(--line); color: var(--ink-soft);
     font-family: 'Inter', sans-serif; font-size: 12px; padding: 6px 12px; border-radius: 4px;
@@ -132,8 +153,8 @@
   #tierkartei-root .log-row.treatment { grid-template-columns: 92px 110px 1fr auto auto; }
   #tierkartei-root .log-row.weight { grid-template-columns: 92px 90px 1fr auto; }
   #tierkartei-root .log-row.pasture { grid-template-columns: 92px 1fr 110px auto; }
-  #tierkartei-root .log-row.doc { grid-template-columns: 1fr auto auto auto; }
-  #tierkartei-root .log-row.stool { grid-template-columns: 92px 1fr 130px auto auto; }
+  #tierkartei-root .log-row.doc { grid-template-columns: 1fr auto auto auto auto; }
+  #tierkartei-root .log-row.stool { grid-template-columns: 92px 1fr 150px auto; }
 
   #tierkartei-root .log-row .date { font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: var(--forest); font-weight: 500; }
   #tierkartei-root .log-row .type {
@@ -150,6 +171,7 @@
     white-space: nowrap; cursor: pointer;
   }
   #tierkartei-root .done-check input { width: 14px; height: 14px; margin: 0; cursor: pointer; }
+  #tierkartei-root .stool-next-cell { display: flex; flex-direction: column; gap: 4px; align-items: flex-start; }
   #tierkartei-root .log-row .del {
     background: none; border: none; color: var(--ink-soft); cursor: pointer; font-size: 15px; line-height: 1; padding: 2px 6px;
   }
@@ -261,7 +283,7 @@
   const TREATMENT_TYPES = ["Impfung", "Wurmkur", "Tierarztbesuch", "Medikament", "Vitamine", "Operation", "Sonstiges"];
   const STORAGE_KEY = "tierkartei-data";
   const PASTURE_ROTATION_DAYS = 28;
-  const MAX_DOC_BYTES = 1.5 * 1024 * 1024; // localStorage hat insgesamt nur ca. 5-10 MB Platz
+  const MAX_DOC_BYTES = 25 * 1024 * 1024; // dank IndexedDB deutlich mehr Platz als vorher
 
   let state = { animals: [], pastures: [], selectedId: null };
   let view = "animal";
@@ -269,6 +291,7 @@
   let addingWeightFor = null;
   let addingDocFor = null;
   let addingStoolFor = null;
+  let showArchive = false;
   let addingPasture = false;
   let showingAnimalForm = false;
   let editingAnimalId = null;
@@ -314,6 +337,67 @@
     return new Blob([bytes], { type: mime });
   }
 
+  // ---------- IndexedDB (f\u00fcr grosse Dateianh\u00e4nge, deutlich mehr Platz als localStorage) ----------
+  const IDB_NAME = "tierkartei-files-db";
+  const IDB_STORE = "files";
+  function idbOpen(){
+    return new Promise((resolve, reject) => {
+      const req = indexedDB.open(IDB_NAME, 1);
+      req.onupgradeneeded = () => { req.result.createObjectStore(IDB_STORE); };
+      req.onsuccess = () => resolve(req.result);
+      req.onerror = () => reject(req.error);
+    });
+  }
+  async function idbSet(key, value){
+    const db = await idbOpen();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction(IDB_STORE, "readwrite");
+      tx.objectStore(IDB_STORE).put(value, key);
+      tx.oncomplete = () => resolve(true);
+      tx.onerror = () => reject(tx.error);
+    });
+  }
+  async function idbGet(key){
+    const db = await idbOpen();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction(IDB_STORE, "readonly");
+      const req = tx.objectStore(IDB_STORE).get(key);
+      req.onsuccess = () => resolve(req.result);
+      req.onerror = () => reject(req.error);
+    });
+  }
+  async function idbDelete(key){
+    const db = await idbOpen();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction(IDB_STORE, "readwrite");
+      tx.objectStore(IDB_STORE).delete(key);
+      tx.oncomplete = () => resolve(true);
+      tx.onerror = () => reject(tx.error);
+    });
+  }
+
+  function resizeImageToDataUrl(file, maxDim, quality){
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      const reader = new FileReader();
+      reader.onload = () => {
+        img.onload = () => {
+          let w = img.width, h = img.height;
+          if(w > h && w > maxDim){ h = Math.round(h * (maxDim / w)); w = maxDim; }
+          else if(h > maxDim){ w = Math.round(w * (maxDim / h)); h = maxDim; }
+          const canvas = document.createElement("canvas");
+          canvas.width = w; canvas.height = h;
+          canvas.getContext("2d").drawImage(img, 0, 0, w, h);
+          resolve(canvas.toDataURL("image/jpeg", quality));
+        };
+        img.onerror = reject;
+        img.src = reader.result;
+      };
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+  }
+
   function buildAnimalPdf(animal){
     if(!window.jspdf || !window.jspdf.jsPDF){
       alert("PDF-Bibliothek konnte nicht geladen werden. Bitte pr\u00fcfe deine Internetverbindung und versuch es erneut.");
@@ -323,6 +407,10 @@
     const doc = new jsPDF();
     const pageWidth = doc.internal.pageSize.getWidth();
     let y = 20;
+
+    if(animal.photo){
+      try{ doc.addImage(animal.photo, "JPEG", pageWidth - 40, 12, 26, 26); }catch(e){}
+    }
 
     doc.setFont("helvetica", "bold");
     doc.setFontSize(20);
@@ -396,7 +484,12 @@
     doc.text(`Erstellt am ${fmtDate(today)} \u2013 Mythen Alpaka Tierkartei`, 14, doc.internal.pageSize.getHeight() - 10);
 
     const safeName = (animal.name || "tier").replace(/[^a-z0-9\-_]+/gi, "_");
-    doc.save(`${safeName}-export-${today}.pdf`);
+    const suggestedName = `${safeName}-export-${today}.pdf`;
+    let filename = window.prompt("Dateiname f\u00fcr den PDF-Export:", suggestedName);
+    if(filename === null) return;
+    filename = filename.trim() || suggestedName;
+    if(!filename.toLowerCase().endsWith(".pdf")) filename += ".pdf";
+    doc.save(filename);
   }
 
   async function load(){
@@ -454,7 +547,7 @@
       tab.onclick = () => {
         view = "animal"; state.selectedId = a.id; showingAnimalForm = false;
         addingTreatmentFor = null; addingWeightFor = null; addingDocFor = null; addingStoolFor = null;
-        editingAnimalId = null;
+        editingAnimalId = null; showArchive = false;
         render();
       };
       tabsEl.appendChild(tab);
@@ -569,16 +662,22 @@
 
     const head = document.createElement("div");
     head.className = "record-head";
+    const photoHtml = animal.photo
+      ? `<img class="animal-photo" src="${animal.photo}" alt="Foto von ${escapeAttr(animal.name)}" />`
+      : `<div class="animal-photo-placeholder">${escapeHtml((animal.name || "?").charAt(0).toUpperCase())}</div>`;
     head.innerHTML = `
-      <div>
-        <h2>${escapeHtml(animal.name || "(ohne Namen)")}</h2>
-        <span class="species-badge">${escapeHtml(animal.species || "Art unbekannt")}</span>
+      <div class="record-head-info">
+        ${photoHtml}
+        <div>
+          <h2>${escapeHtml(animal.name || "(ohne Namen)")}</h2>
+          <span class="species-badge">${escapeHtml(animal.species || "Art unbekannt")}</span>
+        </div>
       </div>`;
     const delBtn = document.createElement("button");
     delBtn.className = "icon-btn"; delBtn.textContent = "Tier l\u00f6schen";
     delBtn.onclick = () => {
       if(confirm(`"${animal.name}" inklusive aller Eintr\u00e4ge wirklich l\u00f6schen?`)){
-        (animal.documents || []).forEach(d => { try{ localStorage.removeItem(`tierkartei-doc-${d.id}`); }catch(e){} });
+        (animal.documents || []).forEach(d => { idbDelete(`tierkartei-doc-${d.id}`).catch(()=>{}); });
         state.animals = state.animals.filter(a => a.id !== animal.id);
         state.selectedId = state.animals.length ? state.animals[0].id : null;
         save(); render();
@@ -671,12 +770,17 @@
         const isDue = s.next && isOverdue(s.next) && !s.nextDone;
         const nextClass = isDue ? "next due" : "next";
         const nextText = s.next
-          ? (s.nextDone ? "n\u00e4chste Probe erledigt (war " + escapeHtml(fmtDate(s.next)) + ")" : "n\u00e4chste Probe: " + escapeHtml(fmtDate(s.next)))
-          : "";
+          ? (s.nextDone ? "erledigt (war " + escapeHtml(fmtDate(s.next)) + ")" : escapeHtml(fmtDate(s.next)))
+          : "\u2014";
         row.innerHTML = `
           <div class="date">${escapeHtml(fmtDate(s.date))}</div>
-          <div class="desc">${escapeHtml(s.result || "")}</div>
-          <div class="${nextClass}">${nextText}</div>`;
+          <div class="desc">${escapeHtml(s.result || "")}</div>`;
+        const nextCell = document.createElement("div");
+        nextCell.className = "stool-next-cell";
+        const nextTextEl = document.createElement("div");
+        nextTextEl.className = nextClass;
+        nextTextEl.textContent = nextText;
+        nextCell.appendChild(nextTextEl);
         if(s.next){
           const label = document.createElement("label");
           label.className = "done-check";
@@ -686,8 +790,9 @@
           cb.onchange = () => { s.nextDone = cb.checked; save(); render(); };
           label.appendChild(cb);
           label.appendChild(document.createTextNode("erledigt"));
-          row.appendChild(label);
+          nextCell.appendChild(label);
         }
+        row.appendChild(nextCell);
         const del = document.createElement("button");
         del.className = "del"; del.innerHTML = "&times;"; del.title = "L\u00f6schen";
         del.onclick = () => { animal.stoolSamples = animal.stoolSamples.filter(x => x.id !== s.id); save(); render(); };
@@ -722,43 +827,76 @@
 
     // Dateien
     contentEl.appendChild(sectionTitleEl("Dateien (z.B. PDF vom Tierarzt)"));
-    const dList = document.createElement("div"); dList.className = "log-list";
     const docs = animal.documents || [];
-    if(docs.length === 0){ dList.appendChild(noEntries("Noch keine Dateien hochgeladen.")); }
-    else {
-      docs.forEach(d => {
-        const row = document.createElement("div"); row.className = "log-row doc";
-        row.innerHTML = `
-          <div class="filename">${escapeHtml(d.filename)}</div>
-          <div class="filemeta">${escapeHtml(fmtDate(d.dateAdded))} \u00b7 ${escapeHtml(formatBytes(d.size))}</div>`;
-        const viewBtn = document.createElement("button");
-        viewBtn.className = "view-link"; viewBtn.textContent = "\u00d6ffnen";
-        viewBtn.onclick = () => {
-          viewBtn.textContent = "l\u00e4dt \u2026";
+    const activeDocs = docs.filter(d => !d.archived);
+    const archivedDocs = docs.filter(d => d.archived);
+
+    function buildDocRow(d){
+      const row = document.createElement("div"); row.className = "log-row doc";
+      row.innerHTML = `
+        <div class="filename">${escapeHtml(d.filename)}</div>
+        <div class="filemeta">${escapeHtml(fmtDate(d.dateAdded))} \u00b7 ${escapeHtml(formatBytes(d.size))}</div>`;
+      const viewBtn = document.createElement("button");
+      viewBtn.className = "view-link"; viewBtn.textContent = "\u00d6ffnen";
+      viewBtn.onclick = () => {
+        viewBtn.textContent = "l\u00e4dt \u2026";
+        const w = window.open("", "_blank");
+        (async () => {
           try{
-            const raw = localStorage.getItem(`tierkartei-doc-${d.id}`);
-            if(raw){
+            const raw = await idbGet(`tierkartei-doc-${d.id}`);
+            if(raw && w){
               const blob = dataURLtoBlob(raw);
               const blobUrl = URL.createObjectURL(blob);
-              window.open(blobUrl, "_blank");
-            } else {
+              w.location.href = blobUrl;
+            } else if(w){
+              w.close();
               alert("Datei konnte nicht geladen werden.");
             }
-          }catch(e){ alert("Datei konnte nicht geladen werden."); }
+          }catch(e){
+            if(w) w.close();
+            alert("Datei konnte nicht geladen werden.");
+          }
           viewBtn.textContent = "\u00d6ffnen";
-        };
-        row.appendChild(viewBtn);
-        const del = document.createElement("button");
-        del.className = "del"; del.innerHTML = "&times;"; del.title = "L\u00f6schen";
-        del.onclick = () => {
-          try{ localStorage.removeItem(`tierkartei-doc-${d.id}`); }catch(e){}
-          animal.documents = animal.documents.filter(x => x.id !== d.id);
-          save(); render();
-        };
-        row.appendChild(del); dList.appendChild(row);
-      });
+        })();
+      };
+      row.appendChild(viewBtn);
+      const archiveBtn = document.createElement("button");
+      archiveBtn.className = "view-link";
+      archiveBtn.textContent = d.archived ? "Aus Archiv holen" : "Archivieren";
+      archiveBtn.onclick = () => { d.archived = !d.archived; save(); render(); };
+      row.appendChild(archiveBtn);
+      const del = document.createElement("button");
+      del.className = "del"; del.innerHTML = "&times;"; del.title = "L\u00f6schen";
+      del.onclick = () => {
+        idbDelete(`tierkartei-doc-${d.id}`).catch(()=>{});
+        animal.documents = animal.documents.filter(x => x.id !== d.id);
+        save(); render();
+      };
+      row.appendChild(del);
+      return row;
+    }
+
+    const dList = document.createElement("div"); dList.className = "log-list";
+    if(activeDocs.length === 0){
+      dList.appendChild(noEntries(archivedDocs.length ? "Keine aktiven Dateien \u2013 alle im Archiv." : "Noch keine Dateien hochgeladen."));
+    } else {
+      activeDocs.forEach(d => dList.appendChild(buildDocRow(d)));
     }
     contentEl.appendChild(dList);
+
+    if(archivedDocs.length){
+      const archiveToggle = document.createElement("button");
+      archiveToggle.className = "toggle-add";
+      archiveToggle.textContent = showArchive ? "Archiv verbergen" : `Archiv anzeigen (${archivedDocs.length})`;
+      archiveToggle.onclick = () => { showArchive = !showArchive; render(); };
+      contentEl.appendChild(archiveToggle);
+      if(showArchive){
+        const archiveList = document.createElement("div"); archiveList.className = "log-list";
+        archivedDocs.forEach(d => archiveList.appendChild(buildDocRow(d)));
+        contentEl.appendChild(archiveList);
+      }
+    }
+
     if(addingDocFor === animal.id){ contentEl.appendChild(buildDocForm(animal)); }
     else { contentEl.appendChild(toggleBtn("+ Datei hochladen", () => { addingDocFor = animal.id; render(); })); }
   }
@@ -782,6 +920,9 @@
     const form = document.createElement("form");
     form.className = "inline-form";
     form.innerHTML = `
+      <div class="form-row full">
+        <div><label class="f-label">Foto (optional)</label><input type="file" name="photo" accept="image/*" /></div>
+      </div>
       <div class="form-row">
         <div><label class="f-label">Name</label><input type="text" name="name" required placeholder="z.B. Bella" /></div>
         <div><label class="f-label">Tierart</label><select name="species"><option value="Alpaka" selected>Alpaka</option></select></div>
@@ -795,13 +936,19 @@
         <button type="submit" class="btn">Tier speichern</button>
         <button type="button" class="btn secondary" id="tk-cancel-animal">Abbrechen</button>
       </div>`;
-    form.onsubmit = (e) => {
+    const photoInput = form.querySelector('input[name="photo"]');
+    form.onsubmit = async (e) => {
       e.preventDefault();
       const fd = new FormData(form);
+      let photo = null;
+      const file = photoInput.files[0];
+      if(file){
+        try{ photo = await resizeImageToDataUrl(file, 500, 0.82); }catch(e){ photo = null; }
+      }
       const newAnimal = {
         id: uid(), name: fd.get("name").trim(), species: fd.get("species").trim(),
         breed: fd.get("breed").trim(), birthdate: fd.get("birthdate"), notes: fd.get("notes").trim(),
-        treatments: [], weights: [], documents: [], stoolSamples: []
+        photo, treatments: [], weights: [], documents: [], stoolSamples: []
       };
       state.animals.push(newAnimal);
       state.selectedId = newAnimal.id;
@@ -815,7 +962,18 @@
   function buildAnimalEditForm(animal){
     const form = document.createElement("form");
     form.className = "inline-form";
+    const photoPreviewHtml = animal.photo
+      ? `<img class="animal-photo" src="${animal.photo}" alt="" />`
+      : `<div class="animal-photo-placeholder">${escapeHtml((animal.name || "?").charAt(0).toUpperCase())}</div>`;
     form.innerHTML = `
+      <div class="photo-edit-row">
+        <div id="tk-photo-preview">${photoPreviewHtml}</div>
+        <div class="photo-edit-controls">
+          <label class="f-label">Foto (optional)</label>
+          <input type="file" name="photo" accept="image/*" />
+          ${animal.photo ? `<label class="remove-photo-check"><input type="checkbox" name="removePhoto" /> aktuelles Foto entfernen</label>` : ""}
+        </div>
+      </div>
       <div class="form-row">
         <div><label class="f-label">Name</label><input type="text" name="name" required value="${escapeAttr(animal.name)}" /></div>
         <div><label class="f-label">Tierart</label><select name="species"><option value="Alpaka" selected>Alpaka</option></select></div>
@@ -829,6 +987,17 @@
         <button type="submit" class="btn">Speichern</button>
         <button type="button" class="btn secondary" id="tk-cancel-edit">Abbrechen</button>
       </div>`;
+    const photoInput = form.querySelector('input[name="photo"]');
+    const photoPreview = form.querySelector('#tk-photo-preview');
+    photoInput.onchange = async () => {
+      const file = photoInput.files[0];
+      if(!file) return;
+      try{
+        const dataUrl = await resizeImageToDataUrl(file, 500, 0.82);
+        photoPreview.innerHTML = `<img class="animal-photo" src="${dataUrl}" alt="" />`;
+        photoInput.dataset.pendingPhoto = dataUrl;
+      }catch(e){ alert("Foto konnte nicht verarbeitet werden."); }
+    };
     form.onsubmit = (e) => {
       e.preventDefault();
       const fd = new FormData(form);
@@ -837,6 +1006,11 @@
       animal.breed = fd.get("breed").trim();
       animal.birthdate = fd.get("birthdate");
       animal.notes = fd.get("notes").trim();
+      if(photoInput.dataset.pendingPhoto){
+        animal.photo = photoInput.dataset.pendingPhoto;
+      } else if(fd.get("removePhoto")){
+        animal.photo = null;
+      }
       editingAnimalId = null;
       save(); render();
     };
@@ -950,13 +1124,13 @@
         const docId = uid();
         try{
           hint.textContent = "l\u00e4dt hoch \u2026"; hint.style.color = "";
-          localStorage.setItem(`tierkartei-doc-${docId}`, reader.result);
+          await idbSet(`tierkartei-doc-${docId}`, reader.result);
           if(!animal.documents) animal.documents = [];
-          animal.documents.push({ id: docId, filename: file.name, mimetype: file.type || "application/octet-stream", size: file.size, dateAdded: new Date().toISOString().slice(0,10) });
+          animal.documents.push({ id: docId, filename: file.name, mimetype: file.type || "application/octet-stream", size: file.size, dateAdded: new Date().toISOString().slice(0,10), archived: false });
           addingDocFor = null;
           save(); render();
         }catch(err){
-          hint.textContent = "Hochladen fehlgeschlagen \u2013 vermutlich ist der lokale Speicher voll.";
+          hint.textContent = "Hochladen fehlgeschlagen. Bitte erneut versuchen.";
           hint.style.color = "var(--clay)";
         }
       };
@@ -978,8 +1152,7 @@
         const bundle = JSON.parse(JSON.stringify(state));
         for(const animal of bundle.animals){
           for(const doc of (animal.documents || [])){
-            try{ doc.data = localStorage.getItem(`tierkartei-doc-${doc.id}`); }
-            catch(e){ doc.data = null; }
+            try{ doc.data = await idbGet(`tierkartei-doc-${doc.id}`); }catch(e){ doc.data = null; }
           }
         }
         const blob = new Blob([JSON.stringify(bundle, null, 2)], { type: 'application/json' });
@@ -1008,7 +1181,7 @@
           statusEl.textContent = "spiele Sicherung ein \u2026";
           for(const animal of parsed.animals){
             for(const doc of (animal.documents || [])){
-              if(doc.data){ try{ localStorage.setItem(`tierkartei-doc-${doc.id}`, doc.data); }catch(e){} delete doc.data; }
+              if(doc.data){ try{ await idbSet(`tierkartei-doc-${doc.id}`, doc.data); }catch(e){} delete doc.data; }
             }
           }
           state = parsed;
