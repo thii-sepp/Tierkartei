@@ -157,6 +157,27 @@
   #tierkartei-root .log-row.pasture { grid-template-columns: 92px 1fr 110px auto auto; }
   #tierkartei-root .log-row.doc { grid-template-columns: 1fr auto auto auto auto auto; }
   #tierkartei-root .log-row.stool { grid-template-columns: 92px 1fr 150px auto; }
+  #tierkartei-root .log-row.simplelog { grid-template-columns: 92px 1fr auto auto; }
+
+  #tierkartei-root .dashboard-grid {
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 16px;
+  }
+  #tierkartei-root .dashboard-card {
+    background: var(--paper-2); border: 1px solid var(--line); border-radius: 6px;
+    padding: 16px; display: flex; flex-direction: column;
+  }
+  #tierkartei-root .dashboard-card-head { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
+  #tierkartei-root .dashboard-card-head .animal-photo,
+  #tierkartei-root .dashboard-card-head .animal-photo-placeholder { width: 48px; height: 48px; }
+  #tierkartei-root .dashboard-name { font-family: 'Fraunces', serif; font-size: 18px; font-weight: 700; color: var(--forest); }
+  #tierkartei-root .dashboard-row { margin-bottom: 10px; font-size: 13px; }
+  #tierkartei-root .dashboard-row label {
+    display: block; font-family: 'IBM Plex Mono', monospace; font-size: 10px; text-transform: uppercase;
+    letter-spacing: 0.05em; color: var(--ink-soft); margin-bottom: 3px;
+  }
+  #tierkartei-root .dashboard-muted { color: var(--ink-soft); font-style: italic; font-size: 12.5px; }
+  #tierkartei-root .dashboard-treatment-line { font-size: 12.5px; margin-bottom: 2px; }
+  #tierkartei-root .dashboard-treatment-line .date { font-family: 'IBM Plex Mono', monospace; color: var(--forest); margin-right: 6px; }
 
   #tierkartei-root .log-row .date { font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: var(--forest); font-weight: 500; }
   #tierkartei-root .log-row .type {
@@ -248,7 +269,7 @@
   @media (max-width: 640px) {
     #tierkartei-root .log-row.treatment, #tierkartei-root .log-row.weight,
     #tierkartei-root .log-row.pasture, #tierkartei-root .log-row.doc,
-    #tierkartei-root .log-row.stool { grid-template-columns: 1fr; gap: 4px; }
+    #tierkartei-root .log-row.stool, #tierkartei-root .log-row.simplelog { grid-template-columns: 1fr; gap: 4px; }
     #tierkartei-root .log-row .del { justify-self: end; }
     #tierkartei-root .form-row, #tierkartei-root .form-row.three { grid-template-columns: 1fr; }
     #tierkartei-root .header .sub { text-align: left; }
@@ -300,6 +321,8 @@
   let showArchive = false;
   let addingPasture = false;
   let editingPastureId = null;
+  let addingLog = { shearings: false, hooves: false };
+  let editingLogId = { shearings: null, hooves: null };
   let showingAnimalForm = false;
   let editingAnimalId = null;
 
@@ -513,6 +536,8 @@
     }
     if(!state.animals) state.animals = [];
     if(!state.pastures) state.pastures = [];
+    if(!state.shearings) state.shearings = [];
+    if(!state.hooves) state.hooves = [];
     state.animals.forEach(a => {
       if(!a.treatments) a.treatments = [];
       if(!a.weights) a.weights = [];
@@ -520,7 +545,7 @@
       if(!a.stoolSamples) a.stoolSamples = [];
     });
     if(state.animals.length && !state.selectedId){ state.selectedId = state.animals[0].id; }
-    if(!state.animals.length) view = "pasture";
+    view = state.animals.length ? "dashboard" : "pasture";
     render();
   }
 
@@ -539,16 +564,46 @@
 
   function render(){
     renderTabs();
-    if(view === "pasture" && !showingAnimalForm){ renderPasture(); } else { renderAnimal(); }
+    if(showingAnimalForm){ renderAnimal(); return; }
+    if(view === "dashboard"){ renderDashboard(); }
+    else if(view === "pasture"){ renderPasture(); }
+    else if(view === "shearing"){ renderSimpleLog("shearings", "Schur"); }
+    else if(view === "hooves"){ renderSimpleLog("hooves", "Klauenpflege"); }
+    else { renderAnimal(); }
+  }
+
+  function resetRegisterState(){
+    addingPasture = false; editingPastureId = null;
+    addingLog = { shearings: false, hooves: false };
+    editingLogId = { shearings: null, hooves: null };
   }
 
   function renderTabs(){
     tabsEl.innerHTML = "";
+
+    const dashboardTab = document.createElement("div");
+    dashboardTab.className = "tab pasture" + (view === "dashboard" && !showingAnimalForm ? " active" : "");
+    dashboardTab.textContent = "Dashboard";
+    dashboardTab.onclick = () => { view = "dashboard"; showingAnimalForm = false; resetRegisterState(); render(); };
+    tabsEl.appendChild(dashboardTab);
+
     const pastureTab = document.createElement("div");
     pastureTab.className = "tab pasture" + (view === "pasture" && !showingAnimalForm ? " active" : "");
     pastureTab.textContent = "Weidemanagement";
-    pastureTab.onclick = () => { view = "pasture"; showingAnimalForm = false; render(); };
+    pastureTab.onclick = () => { view = "pasture"; showingAnimalForm = false; resetRegisterState(); render(); };
     tabsEl.appendChild(pastureTab);
+
+    const shearingTab = document.createElement("div");
+    shearingTab.className = "tab pasture" + (view === "shearing" && !showingAnimalForm ? " active" : "");
+    shearingTab.textContent = "Schur";
+    shearingTab.onclick = () => { view = "shearing"; showingAnimalForm = false; resetRegisterState(); render(); };
+    tabsEl.appendChild(shearingTab);
+
+    const hoovesTab = document.createElement("div");
+    hoovesTab.className = "tab pasture" + (view === "hooves" && !showingAnimalForm ? " active" : "");
+    hoovesTab.textContent = "Klauen";
+    hoovesTab.onclick = () => { view = "hooves"; showingAnimalForm = false; resetRegisterState(); render(); };
+    tabsEl.appendChild(hoovesTab);
 
     state.animals.forEach(a => {
       const tab = document.createElement("div");
@@ -557,7 +612,8 @@
       tab.onclick = () => {
         view = "animal"; state.selectedId = a.id; showingAnimalForm = false;
         addingTreatmentFor = null; addingWeightFor = null; addingDocFor = null; addingStoolFor = null;
-        editingAnimalId = null; showArchive = false; editingPastureId = null;
+        editingAnimalId = null; showArchive = false;
+        resetRegisterState();
         render();
       };
       tabsEl.appendChild(tab);
@@ -675,6 +731,153 @@
     };
     form.querySelector("#tk-cancel-pasture").onclick = () => {
       if(existing){ editingPastureId = null; } else { addingPasture = false; }
+      render();
+    };
+    return form;
+  }
+
+  // ---------- Dashboard ----------
+  function renderDashboard(){
+    contentEl.innerHTML = "";
+    const head = document.createElement("div");
+    head.className = "record-head";
+    head.innerHTML = `<div><h2>Dashboard</h2></div>`;
+    contentEl.appendChild(head);
+
+    if(state.animals.length === 0){
+      contentEl.appendChild(noEntries("Noch keine Tiere erfasst."));
+      return;
+    }
+
+    const grid = document.createElement("div");
+    grid.className = "dashboard-grid";
+
+    state.animals.forEach(animal => {
+      const card = document.createElement("div");
+      card.className = "dashboard-card";
+
+      const latestWeight = [...(animal.weights||[])].sort((a,b) => (b.date||"").localeCompare(a.date||""))[0];
+      const nextStool = [...(animal.stoolSamples||[])]
+        .filter(s => s.next && !s.nextDone)
+        .sort((a,b) => (b.date||"").localeCompare(a.date||""))[0];
+      const lastTreatments = [...(animal.treatments||[])].sort((a,b) => (b.date||"").localeCompare(a.date||"")).slice(0,3);
+
+      const photoHtml = animal.photo
+        ? `<img class="animal-photo" src="${animal.photo}" alt="" />`
+        : `<div class="animal-photo-placeholder">${escapeHtml((animal.name || "?").charAt(0).toUpperCase())}</div>`;
+
+      let stoolHtml;
+      if(nextStool){
+        const overdue = isOverdue(nextStool.next);
+        stoolHtml = `<span class="${overdue ? "next due" : "next"}">${escapeHtml(fmtDate(nextStool.next))}${overdue ? " (f\u00e4llig)" : ""}</span>`;
+      } else {
+        stoolHtml = `<span class="dashboard-muted">keine offene Probe</span>`;
+      }
+
+      let treatmentsHtml;
+      if(lastTreatments.length === 0){
+        treatmentsHtml = `<div class="dashboard-muted">keine Eintr\u00e4ge</div>`;
+      } else {
+        treatmentsHtml = lastTreatments.map(t =>
+          `<div class="dashboard-treatment-line"><span class="date">${escapeHtml(fmtDate(t.date))}</span> ${escapeHtml(t.type || "")}${t.desc ? " \u2013 " + escapeHtml(t.desc) : ""}</div>`
+        ).join("");
+      }
+
+      card.innerHTML = `
+        <div class="dashboard-card-head">
+          ${photoHtml}
+          <div>
+            <div class="dashboard-name">${escapeHtml(animal.name || "(ohne Namen)")}</div>
+            <span class="species-badge">${escapeHtml(animal.species || "")}</span>
+          </div>
+        </div>
+        <div class="dashboard-row"><label>Aktuelles Gewicht</label><div>${latestWeight ? escapeHtml(latestWeight.weight + " kg (" + fmtDate(latestWeight.date) + ")") : '<span class="dashboard-muted">keine Angabe</span>'}</div></div>
+        <div class="dashboard-row"><label>N\u00e4chste Kotprobe</label><div>${stoolHtml}</div></div>
+        <div class="dashboard-row"><label>Letzte Behandlungen</label>${treatmentsHtml}</div>
+      `;
+      const openBtn = document.createElement("button");
+      openBtn.className = "btn secondary";
+      openBtn.textContent = "Tier \u00f6ffnen";
+      openBtn.style.marginTop = "8px";
+      openBtn.onclick = () => {
+        view = "animal"; state.selectedId = animal.id;
+        resetRegisterState(); render();
+      };
+      card.appendChild(openBtn);
+
+      grid.appendChild(card);
+    });
+
+    contentEl.appendChild(grid);
+  }
+
+  // ---------- Einfache Register (Schur, Klauen) ----------
+  function renderSimpleLog(category, title){
+    contentEl.innerHTML = "";
+    const head = document.createElement("div");
+    head.className = "record-head";
+    head.innerHTML = `<div><h2>${escapeHtml(title)}</h2></div>`;
+    contentEl.appendChild(head);
+
+    const list = document.createElement("div");
+    list.className = "log-list";
+    const sorted = [...state[category]].sort((a,b) => (b.date||"").localeCompare(a.date||""));
+    if(sorted.length === 0){ list.appendChild(noEntries("Noch keine Eintr\u00e4ge.")); }
+    sorted.forEach(item => {
+      if(editingLogId[category] === item.id){
+        list.appendChild(buildSimpleLogForm(category, item));
+        return;
+      }
+      const row = document.createElement("div");
+      row.className = "log-row simplelog";
+      row.innerHTML = `
+        <div class="date">${escapeHtml(fmtDate(item.date))}</div>
+        <div class="desc">${escapeHtml(item.notes || "")}</div>`;
+      const editBtn = document.createElement("button");
+      editBtn.className = "view-link";
+      editBtn.textContent = "Bearbeiten";
+      editBtn.onclick = () => { editingLogId[category] = item.id; render(); };
+      row.appendChild(editBtn);
+      const delBtn = document.createElement("button");
+      delBtn.className = "del"; delBtn.innerHTML = "&times;"; delBtn.title = "L\u00f6schen";
+      delBtn.onclick = () => { state[category] = state[category].filter(x => x.id !== item.id); save(); render(); };
+      row.appendChild(delBtn);
+      list.appendChild(row);
+    });
+    contentEl.appendChild(list);
+
+    if(addingLog[category]){ contentEl.appendChild(buildSimpleLogForm(category)); }
+    else { contentEl.appendChild(toggleBtn("+ Eintrag hinzuf\u00fcgen", () => { addingLog[category] = true; render(); })); }
+  }
+
+  function buildSimpleLogForm(category, existing){
+    const form = document.createElement("form");
+    form.className = "inline-form";
+    const today = new Date().toISOString().slice(0,10);
+    form.innerHTML = `
+      <div class="form-row">
+        <div><label class="f-label">Datum</label><input type="date" name="date" value="${existing ? escapeAttr(existing.date) : today}" required /></div>
+      </div>
+      <div class="form-row full"><div><label class="f-label">Bemerkungen</label><textarea name="notes">${existing ? escapeHtml(existing.notes) : ""}</textarea></div></div>
+      <div class="btn-row">
+        <button type="submit" class="btn">${existing ? "Speichern" : "Eintragen"}</button>
+        <button type="button" class="btn secondary" id="tk-cancel-simplelog">Abbrechen</button>
+      </div>`;
+    form.onsubmit = (e) => {
+      e.preventDefault();
+      const fd = new FormData(form);
+      if(existing){
+        existing.date = fd.get("date");
+        existing.notes = fd.get("notes").trim();
+        editingLogId[category] = null;
+      } else {
+        state[category].push({ id: uid(), date: fd.get("date"), notes: fd.get("notes").trim() });
+        addingLog[category] = false;
+      }
+      save(); render();
+    };
+    form.querySelector("#tk-cancel-simplelog").onclick = () => {
+      if(existing){ editingLogId[category] = null; } else { addingLog[category] = false; }
       render();
     };
     return form;
