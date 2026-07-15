@@ -133,7 +133,7 @@
   #tierkartei-root .log-row.weight { grid-template-columns: 92px 90px 1fr auto; }
   #tierkartei-root .log-row.pasture { grid-template-columns: 92px 1fr 110px auto; }
   #tierkartei-root .log-row.doc { grid-template-columns: 1fr auto auto auto; }
-  #tierkartei-root .log-row.stool { grid-template-columns: 92px 1fr 130px auto; }
+  #tierkartei-root .log-row.stool { grid-template-columns: 92px 1fr 130px auto auto; }
 
   #tierkartei-root .log-row .date { font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: var(--forest); font-weight: 500; }
   #tierkartei-root .log-row .type {
@@ -144,6 +144,12 @@
   #tierkartei-root .log-row .weight-val { font-family: 'IBM Plex Mono', monospace; font-size: 13px; color: var(--ink); }
   #tierkartei-root .log-row .next { font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: var(--ink-soft); white-space: nowrap; }
   #tierkartei-root .log-row .next.due { color: var(--clay); font-weight: 600; }
+  #tierkartei-root .done-check {
+    display: inline-flex; align-items: center; gap: 5px;
+    font-family: 'IBM Plex Mono', monospace; font-size: 10.5px; color: var(--ink-soft);
+    white-space: nowrap; cursor: pointer;
+  }
+  #tierkartei-root .done-check input { width: 14px; height: 14px; margin: 0; cursor: pointer; }
   #tierkartei-root .log-row .del {
     background: none; border: none; color: var(--ink-soft); cursor: pointer; font-size: 15px; line-height: 1; padding: 2px 6px;
   }
@@ -229,7 +235,7 @@
 <div id="tierkartei-root">
   <div class="wrap">
     <div class="header">
-      <h1>Tierkartei</h1>
+      <h1>Mythen Alpaka</h1>
       <div>
         <div class="sub" id="tk-status">wird geladen &hellip;</div>
         <div class="sub" style="text-transform:none; font-size:10.5px; margin-top:2px;">eigenst&auml;ndige Version &ndash; Daten bleiben nur in diesem Browser</div>
@@ -248,6 +254,8 @@
   </div>
 </div>
 
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
 <script>
 (function(){
   const TREATMENT_TYPES = ["Impfung", "Wurmkur", "Tierarztbesuch", "Medikament", "Vitamine", "Operation", "Sonstiges"];
@@ -263,6 +271,7 @@
   let addingStoolFor = null;
   let addingPasture = false;
   let showingAnimalForm = false;
+  let editingAnimalId = null;
 
   const tabsEl = document.getElementById('tk-tabs');
   const contentEl = document.getElementById('tk-content');
@@ -291,6 +300,103 @@
     if(n < 1024) return n + " B";
     if(n < 1024*1024) return Math.round(n/1024) + " KB";
     return (n/(1024*1024)).toFixed(1) + " MB";
+  }
+  function dataURLtoBlob(dataURL){
+    const commaIdx = dataURL.indexOf(",");
+    const header = dataURL.slice(0, commaIdx);
+    const base64 = dataURL.slice(commaIdx + 1);
+    const mimeMatch = header.match(/data:(.*?);base64/);
+    const mime = mimeMatch ? mimeMatch[1] : "application/octet-stream";
+    const binary = atob(base64);
+    const len = binary.length;
+    const bytes = new Uint8Array(len);
+    for(let i = 0; i < len; i++){ bytes[i] = binary.charCodeAt(i); }
+    return new Blob([bytes], { type: mime });
+  }
+
+  function buildAnimalPdf(animal){
+    if(!window.jspdf || !window.jspdf.jsPDF){
+      alert("PDF-Bibliothek konnte nicht geladen werden. Bitte pr\u00fcfe deine Internetverbindung und versuch es erneut.");
+      return;
+    }
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF();
+    const pageWidth = doc.internal.pageSize.getWidth();
+    let y = 20;
+
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(20);
+    doc.text(animal.name || "(ohne Namen)", 14, y);
+    y += 8;
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(11);
+    doc.text(animal.species || "Tierart unbekannt", 14, y);
+    y += 10;
+
+    doc.setFontSize(10);
+    const stammdaten = [
+      ["Rasse", animal.breed || "\u2014"],
+      ["Geburtsdatum", animal.birthdate ? fmtDate(animal.birthdate) : "\u2014"],
+      ["Notizen", animal.notes || "\u2014"]
+    ];
+    doc.autoTable({
+      startY: y, theme: "plain", styles: { fontSize: 10, cellPadding: 1.5 },
+      columnStyles: { 0: { fontStyle: "bold", cellWidth: 35 } },
+      body: stammdaten
+    });
+    y = doc.lastAutoTable.finalY + 8;
+
+    function addSection(title, head, rows, emptyText){
+      if(y > 260){ doc.addPage(); y = 20; }
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(13);
+      doc.text(title, 14, y);
+      y += 3;
+      if(rows.length === 0){
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(10);
+        doc.text(emptyText, 14, y + 6);
+        y += 14;
+      } else {
+        doc.autoTable({
+          startY: y + 3, head: [head], body: rows,
+          styles: { fontSize: 9, cellPadding: 2.5 },
+          headStyles: { fillColor: [47, 69, 54] },
+          margin: { left: 14, right: 14 }
+        });
+        y = doc.lastAutoTable.finalY + 8;
+      }
+    }
+
+    const treatments = [...(animal.treatments||[])].sort((a,b) => (b.date||"").localeCompare(a.date||""))
+      .map(t => [fmtDate(t.date), t.type || "Sonstiges", t.desc || "", t.next ? fmtDate(t.next) : "\u2014"]);
+    addSection("Behandlungsverlauf", ["Datum", "Art", "Beschreibung", "N\u00e4chster Termin"], treatments, "Keine Behandlungen eingetragen.");
+
+    const stools = [...(animal.stoolSamples||[])].sort((a,b) => (b.date||"").localeCompare(a.date||""))
+      .map(s => [fmtDate(s.date), s.result || "", s.next ? fmtDate(s.next) : "\u2014", s.next ? (s.nextDone ? "ja" : "nein") : "\u2014"]);
+    addSection("Kotproben", ["Datum", "Befund", "N\u00e4chste Probe", "Erledigt"], stools, "Keine Kotproben eingetragen.");
+
+    const weights = [...(animal.weights||[])].sort((a,b) => (b.date||"").localeCompare(a.date||""))
+      .map(w => [fmtDate(w.date), w.weight + " kg", w.notes || ""]);
+    addSection("Gewichtsverlauf", ["Datum", "Gewicht", "Notizen"], weights, "Keine Gewichte eingetragen.");
+
+    const docs = (animal.documents||[]).map(d => [d.filename, fmtDate(d.dateAdded), formatBytes(d.size)]);
+    addSection("Dateien", ["Dateiname", "Hinzugef\u00fcgt am", "Gr\u00f6\u00dfe"], docs, "Keine Dateien hochgeladen.");
+    if(docs.length){
+      doc.setFont("helvetica", "italic");
+      doc.setFontSize(8.5);
+      doc.text("Hinweis: die Dateiinhalte selbst sind in diesem PDF nicht enthalten, nur die Liste der Dateinamen.", 14, y);
+      y += 8;
+    }
+
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(8);
+    doc.setTextColor(150);
+    const today = new Date().toISOString().slice(0,10);
+    doc.text(`Erstellt am ${fmtDate(today)} \u2013 Mythen Alpaka Tierkartei`, 14, doc.internal.pageSize.getHeight() - 10);
+
+    const safeName = (animal.name || "tier").replace(/[^a-z0-9\-_]+/gi, "_");
+    doc.save(`${safeName}-export-${today}.pdf`);
   }
 
   async function load(){
@@ -348,6 +454,7 @@
       tab.onclick = () => {
         view = "animal"; state.selectedId = a.id; showingAnimalForm = false;
         addingTreatmentFor = null; addingWeightFor = null; addingDocFor = null; addingStoolFor = null;
+        editingAnimalId = null;
         render();
       };
       tabsEl.appendChild(tab);
@@ -477,21 +584,50 @@
         save(); render();
       }
     };
+    const editBtn = document.createElement("button");
+    editBtn.className = "icon-btn";
+    editBtn.textContent = editingAnimalId === animal.id ? "Abbrechen" : "Stammdaten bearbeiten";
+    editBtn.style.marginRight = "8px";
+    editBtn.onclick = () => { editingAnimalId = editingAnimalId === animal.id ? null : animal.id; render(); };
+    const exportAnimalBtn = document.createElement("button");
+    exportAnimalBtn.className = "icon-btn";
+    exportAnimalBtn.textContent = "Tier exportieren";
+    exportAnimalBtn.style.marginRight = "8px";
+    exportAnimalBtn.onclick = () => {
+      const originalLabel = exportAnimalBtn.textContent;
+      exportAnimalBtn.textContent = "erstelle PDF \u2026";
+      exportAnimalBtn.disabled = true;
+      try{
+        buildAnimalPdf(animal);
+      }catch(e){
+        console.error(e);
+        alert("PDF konnte nicht erstellt werden.");
+      } finally {
+        exportAnimalBtn.textContent = originalLabel;
+        exportAnimalBtn.disabled = false;
+      }
+    };
+    head.appendChild(editBtn);
+    head.appendChild(exportAnimalBtn);
     head.appendChild(delBtn);
     contentEl.appendChild(head);
 
     const latestWeight = [...(animal.weights||[])].sort((a,b) => (b.date||"").localeCompare(a.date||""))[0];
     const nextStool = [...(animal.stoolSamples||[])]
-      .filter(s => s.next)
+      .filter(s => s.next && !s.nextDone)
       .sort((a,b) => (b.date||"").localeCompare(a.date||""))[0];
 
-    const metaGrid = document.createElement("div");
-    metaGrid.className = "meta-grid";
-    metaGrid.appendChild(metaField("Rasse", animal.breed));
-    metaGrid.appendChild(metaField("Geburtsdatum", animal.birthdate ? fmtDate(animal.birthdate) : ""));
-    metaGrid.appendChild(metaField("Aktuelles Gewicht", latestWeight ? latestWeight.weight + " kg (" + fmtDate(latestWeight.date) + ")" : ""));
-    metaGrid.appendChild(metaField("Notizen", animal.notes));
-    contentEl.appendChild(metaGrid);
+    if(editingAnimalId === animal.id){
+      contentEl.appendChild(buildAnimalEditForm(animal));
+    } else {
+      const metaGrid = document.createElement("div");
+      metaGrid.className = "meta-grid";
+      metaGrid.appendChild(metaField("Rasse", animal.breed));
+      metaGrid.appendChild(metaField("Geburtsdatum", animal.birthdate ? fmtDate(animal.birthdate) : ""));
+      metaGrid.appendChild(metaField("Aktuelles Gewicht", latestWeight ? latestWeight.weight + " kg (" + fmtDate(latestWeight.date) + ")" : ""));
+      metaGrid.appendChild(metaField("Notizen", animal.notes));
+      contentEl.appendChild(metaGrid);
+    }
 
     if(nextStool && isOverdue(nextStool.next)){
       const banner = document.createElement("div");
@@ -532,11 +668,26 @@
     else {
       sSorted.forEach(s => {
         const row = document.createElement("div"); row.className = "log-row stool";
-        const nextClass = s.next && isOverdue(s.next) ? "next due" : "next";
+        const isDue = s.next && isOverdue(s.next) && !s.nextDone;
+        const nextClass = isDue ? "next due" : "next";
+        const nextText = s.next
+          ? (s.nextDone ? "n\u00e4chste Probe erledigt (war " + escapeHtml(fmtDate(s.next)) + ")" : "n\u00e4chste Probe: " + escapeHtml(fmtDate(s.next)))
+          : "";
         row.innerHTML = `
           <div class="date">${escapeHtml(fmtDate(s.date))}</div>
           <div class="desc">${escapeHtml(s.result || "")}</div>
-          <div class="${nextClass}">${s.next ? "n\u00e4chste Probe: " + escapeHtml(fmtDate(s.next)) : ""}</div>`;
+          <div class="${nextClass}">${nextText}</div>`;
+        if(s.next){
+          const label = document.createElement("label");
+          label.className = "done-check";
+          const cb = document.createElement("input");
+          cb.type = "checkbox";
+          cb.checked = !!s.nextDone;
+          cb.onchange = () => { s.nextDone = cb.checked; save(); render(); };
+          label.appendChild(cb);
+          label.appendChild(document.createTextNode("erledigt"));
+          row.appendChild(label);
+        }
         const del = document.createElement("button");
         del.className = "del"; del.innerHTML = "&times;"; del.title = "L\u00f6schen";
         del.onclick = () => { animal.stoolSamples = animal.stoolSamples.filter(x => x.id !== s.id); save(); render(); };
@@ -582,16 +733,16 @@
           <div class="filemeta">${escapeHtml(fmtDate(d.dateAdded))} \u00b7 ${escapeHtml(formatBytes(d.size))}</div>`;
         const viewBtn = document.createElement("button");
         viewBtn.className = "view-link"; viewBtn.textContent = "\u00d6ffnen";
-        viewBtn.onclick = async () => {
+        viewBtn.onclick = () => {
           viewBtn.textContent = "l\u00e4dt \u2026";
           try{
             const raw = localStorage.getItem(`tierkartei-doc-${d.id}`);
             if(raw){
-              const w = window.open();
-              if(w){
-                if(d.mimetype === "application/pdf" || d.mimetype.startsWith("image/")){ w.location.href = raw; }
-                else { const a = w.document.createElement("a"); a.href = raw; a.download = d.filename; a.click(); }
-              }
+              const blob = dataURLtoBlob(raw);
+              const blobUrl = URL.createObjectURL(blob);
+              window.open(blobUrl, "_blank");
+            } else {
+              alert("Datei konnte nicht geladen werden.");
             }
           }catch(e){ alert("Datei konnte nicht geladen werden."); }
           viewBtn.textContent = "\u00d6ffnen";
@@ -633,7 +784,7 @@
     form.innerHTML = `
       <div class="form-row">
         <div><label class="f-label">Name</label><input type="text" name="name" required placeholder="z.B. Bella" /></div>
-        <div><label class="f-label">Tierart</label><input type="text" name="species" placeholder="z.B. Hund, Katze, Pferd" /></div>
+        <div><label class="f-label">Tierart</label><select name="species"><option value="Alpaka" selected>Alpaka</option></select></div>
       </div>
       <div class="form-row">
         <div><label class="f-label">Rasse</label><input type="text" name="breed" placeholder="optional" /></div>
@@ -658,6 +809,38 @@
       save(); render();
     };
     form.querySelector("#tk-cancel-animal").onclick = () => { showingAnimalForm = false; render(); };
+    return form;
+  }
+
+  function buildAnimalEditForm(animal){
+    const form = document.createElement("form");
+    form.className = "inline-form";
+    form.innerHTML = `
+      <div class="form-row">
+        <div><label class="f-label">Name</label><input type="text" name="name" required value="${escapeAttr(animal.name)}" /></div>
+        <div><label class="f-label">Tierart</label><select name="species"><option value="Alpaka" selected>Alpaka</option></select></div>
+      </div>
+      <div class="form-row">
+        <div><label class="f-label">Rasse</label><input type="text" name="breed" value="${escapeAttr(animal.breed)}" /></div>
+        <div><label class="f-label">Geburtsdatum</label><input type="date" name="birthdate" value="${escapeAttr(animal.birthdate)}" /></div>
+      </div>
+      <div class="form-row full"><div><label class="f-label">Notizen</label><textarea name="notes">${escapeHtml(animal.notes)}</textarea></div></div>
+      <div class="btn-row">
+        <button type="submit" class="btn">Speichern</button>
+        <button type="button" class="btn secondary" id="tk-cancel-edit">Abbrechen</button>
+      </div>`;
+    form.onsubmit = (e) => {
+      e.preventDefault();
+      const fd = new FormData(form);
+      animal.name = fd.get("name").trim();
+      animal.species = fd.get("species").trim();
+      animal.breed = fd.get("breed").trim();
+      animal.birthdate = fd.get("birthdate");
+      animal.notes = fd.get("notes").trim();
+      editingAnimalId = null;
+      save(); render();
+    };
+    form.querySelector("#tk-cancel-edit").onclick = () => { editingAnimalId = null; render(); };
     return form;
   }
 
@@ -852,6 +1035,7 @@
     if(str === undefined || str === null) return "";
     return String(str).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
   }
+  function escapeAttr(str){ return escapeHtml(str); }
 
   setupDataActions();
   load();
