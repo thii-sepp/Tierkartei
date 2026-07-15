@@ -153,7 +153,7 @@
   #tierkartei-root .log-row.treatment { grid-template-columns: 92px 110px 1fr auto auto; }
   #tierkartei-root .log-row.weight { grid-template-columns: 92px 90px 1fr auto; }
   #tierkartei-root .log-row.pasture { grid-template-columns: 92px 1fr 110px auto; }
-  #tierkartei-root .log-row.doc { grid-template-columns: 1fr auto auto auto auto; }
+  #tierkartei-root .log-row.doc { grid-template-columns: 1fr auto auto auto auto auto; }
   #tierkartei-root .log-row.stool { grid-template-columns: 92px 1fr 150px auto; }
 
   #tierkartei-root .log-row .date { font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: var(--forest); font-weight: 500; }
@@ -826,7 +826,7 @@
     else { contentEl.appendChild(toggleBtn("+ Gewicht eintragen", () => { addingWeightFor = animal.id; render(); })); }
 
     // Dateien
-    contentEl.appendChild(sectionTitleEl("Dateien (z.B. PDF vom Tierarzt)"));
+    contentEl.appendChild(sectionTitleEl("Dokumentenablage"));
     const docs = animal.documents || [];
     const activeDocs = docs.filter(d => !d.archived);
     const archivedDocs = docs.filter(d => d.archived);
@@ -860,6 +860,16 @@
         })();
       };
       row.appendChild(viewBtn);
+      const renameBtn = document.createElement("button");
+      renameBtn.className = "view-link";
+      renameBtn.textContent = "Umbenennen";
+      renameBtn.onclick = () => {
+        const newName = window.prompt("Neuer Dateiname:", d.filename);
+        if(newName === null) return;
+        const trimmed = newName.trim();
+        if(trimmed){ d.filename = trimmed; save(); render(); }
+      };
+      row.appendChild(renameBtn);
       const archiveBtn = document.createElement("button");
       archiveBtn.className = "view-link";
       archiveBtn.textContent = d.archived ? "Aus Archiv holen" : "Archivieren";
