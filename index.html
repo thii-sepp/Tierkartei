@@ -152,12 +152,20 @@
     display: grid; align-items: center; gap: 12px; padding: 10px 12px;
     background: var(--paper-2); border: 1px solid var(--line); border-radius: 4px; font-size: 13.5px;
   }
-  #tierkartei-root .log-row.treatment { grid-template-columns: 92px 110px 1fr auto auto; }
+  #tierkartei-root .log-row.treatment { grid-template-columns: 92px 110px 1fr auto auto auto; }
   #tierkartei-root .log-row.weight { grid-template-columns: 92px 90px 1fr auto; }
   #tierkartei-root .log-row.pasture { grid-template-columns: 92px 1fr 110px auto auto; }
   #tierkartei-root .log-row.doc { grid-template-columns: 1fr auto auto auto auto auto; }
-  #tierkartei-root .log-row.stool { grid-template-columns: 92px 1fr 150px auto; }
+  #tierkartei-root .log-row.stool { grid-template-columns: 92px 1fr 150px auto auto; }
   #tierkartei-root .log-row.simplelog { grid-template-columns: 92px 1fr auto auto; }
+  #tierkartei-root .log-row.cost { grid-template-columns: 92px 110px 1fr 100px auto auto; }
+  #tierkartei-root .cost-in { color: #3E6B4A; font-weight: 600; font-family: 'IBM Plex Mono', monospace; font-size: 13px; }
+  #tierkartei-root .cost-out { color: var(--clay); font-weight: 600; font-family: 'IBM Plex Mono', monospace; font-size: 13px; }
+  #tierkartei-root .cost-summary { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 14px; margin-bottom: 22px; }
+  #tierkartei-root .cost-summary-box { background: var(--paper-2); border: 1px solid var(--line); border-radius: 6px; padding: 14px 16px; }
+  #tierkartei-root .cost-summary-year { font-family: 'Fraunces', serif; font-size: 18px; font-weight: 700; color: var(--forest); margin-bottom: 8px; }
+  #tierkartei-root .cost-summary-row { display: flex; justify-content: space-between; font-size: 12.5px; margin-bottom: 3px; color: var(--ink-soft); }
+  #tierkartei-root .cost-summary-row.cost-balance { margin-top: 6px; padding-top: 6px; border-top: 1px dashed var(--line); font-weight: 600; color: var(--ink); }
 
   #tierkartei-root .dashboard-grid {
     display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 16px;
@@ -244,6 +252,12 @@
   }
   #tierkartei-root .toggle-add:hover { background: var(--sage); }
 
+  #tierkartei-root .treatment-filter {
+    display: flex; align-items: center; gap: 10px; margin-bottom: 12px;
+  }
+  #tierkartei-root .treatment-filter label { margin-bottom: 0; white-space: nowrap; }
+  #tierkartei-root .treatment-filter select { width: auto; min-width: 180px; }
+
   #tierkartei-root .data-actions { display: flex; gap: 8px; margin-top: 8px; justify-content: flex-end; }
   #tierkartei-root .data-actions button {
     font-family: 'IBM Plex Mono', monospace; font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.04em;
@@ -269,7 +283,7 @@
   @media (max-width: 640px) {
     #tierkartei-root .log-row.treatment, #tierkartei-root .log-row.weight,
     #tierkartei-root .log-row.pasture, #tierkartei-root .log-row.doc,
-    #tierkartei-root .log-row.stool, #tierkartei-root .log-row.simplelog { grid-template-columns: 1fr; gap: 4px; }
+    #tierkartei-root .log-row.stool, #tierkartei-root .log-row.simplelog, #tierkartei-root .log-row.cost { grid-template-columns: 1fr; gap: 4px; }
     #tierkartei-root .log-row .del { justify-self: end; }
     #tierkartei-root .form-row, #tierkartei-root .form-row.three { grid-template-columns: 1fr; }
     #tierkartei-root .header .sub { text-align: left; }
@@ -323,6 +337,22 @@
   let editingPastureId = null;
   let addingLog = { shearings: false, hooves: false };
   let editingLogId = { shearings: null, hooves: null };
+  let addingCost = false;
+  let editingCostId = null;
+  let editingTreatmentId = null;
+  let editingStoolId = null;
+  let showAllTreatments = false;
+  let treatmentFilter = "alle";
+
+  const TREATMENT_COLORS = {
+    "Impfung": "#2F4536",
+    "Wurmkur": "#5C7A52",
+    "Tierarztbesuch": "#B9822E",
+    "Medikament": "#A6482F",
+    "Vitamine": "#7A5C8E",
+    "Operation": "#7A2E2E",
+    "Sonstiges": "#6B6656"
+  };
   let showingAnimalForm = false;
   let editingAnimalId = null;
 
@@ -538,6 +568,7 @@
     if(!state.pastures) state.pastures = [];
     if(!state.shearings) state.shearings = [];
     if(!state.hooves) state.hooves = [];
+    if(!state.costs) state.costs = [];
     state.animals.forEach(a => {
       if(!a.treatments) a.treatments = [];
       if(!a.weights) a.weights = [];
@@ -569,6 +600,7 @@
     else if(view === "pasture"){ renderPasture(); }
     else if(view === "shearing"){ renderSimpleLog("shearings", "Schur"); }
     else if(view === "hooves"){ renderSimpleLog("hooves", "Klauenpflege"); }
+    else if(view === "costs"){ renderCosts(); }
     else { renderAnimal(); }
   }
 
@@ -576,6 +608,7 @@
     addingPasture = false; editingPastureId = null;
     addingLog = { shearings: false, hooves: false };
     editingLogId = { shearings: null, hooves: null };
+    addingCost = false; editingCostId = null;
   }
 
   function renderTabs(){
@@ -605,6 +638,12 @@
     hoovesTab.onclick = () => { view = "hooves"; showingAnimalForm = false; resetRegisterState(); render(); };
     tabsEl.appendChild(hoovesTab);
 
+    const costsTab = document.createElement("div");
+    costsTab.className = "tab pasture" + (view === "costs" && !showingAnimalForm ? " active" : "");
+    costsTab.textContent = "Kosten";
+    costsTab.onclick = () => { view = "costs"; showingAnimalForm = false; resetRegisterState(); render(); };
+    tabsEl.appendChild(costsTab);
+
     state.animals.forEach(a => {
       const tab = document.createElement("div");
       tab.className = "tab" + (view === "animal" && !showingAnimalForm && a.id === state.selectedId ? " active" : "");
@@ -613,6 +652,7 @@
         view = "animal"; state.selectedId = a.id; showingAnimalForm = false;
         addingTreatmentFor = null; addingWeightFor = null; addingDocFor = null; addingStoolFor = null;
         editingAnimalId = null; showArchive = false;
+        editingTreatmentId = null; editingStoolId = null; showAllTreatments = false; treatmentFilter = "alle";
         resetRegisterState();
         render();
       };
@@ -883,6 +923,130 @@
     return form;
   }
 
+  // ---------- Kosten ----------
+  function formatCHF(amount){
+    const n = Number(amount) || 0;
+    return "CHF " + n.toLocaleString("de-CH", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  }
+
+  function renderCosts(){
+    contentEl.innerHTML = "";
+    const head = document.createElement("div");
+    head.className = "record-head";
+    head.innerHTML = `<div><h2>Kosten</h2></div>`;
+    contentEl.appendChild(head);
+
+    const costs = state.costs || [];
+    const years = {};
+    costs.forEach(c => {
+      const year = (c.date || "").slice(0,4) || "?";
+      if(!years[year]) years[year] = { income: 0, expense: 0 };
+      const amt = Number(c.amount) || 0;
+      if(c.type === "einnahme"){ years[year].income += amt; } else { years[year].expense += amt; }
+    });
+    const yearKeys = Object.keys(years).sort((a,b) => b.localeCompare(a));
+
+    if(yearKeys.length){
+      const summary = document.createElement("div");
+      summary.className = "cost-summary";
+      yearKeys.forEach(year => {
+        const y = years[year];
+        const balance = y.income - y.expense;
+        const box = document.createElement("div");
+        box.className = "cost-summary-box";
+        box.innerHTML = `
+          <div class="cost-summary-year">${escapeHtml(year)}</div>
+          <div class="cost-summary-row"><span>Einnahmen</span><span class="cost-in">${escapeHtml(formatCHF(y.income))}</span></div>
+          <div class="cost-summary-row"><span>Ausgaben</span><span class="cost-out">${escapeHtml(formatCHF(y.expense))}</span></div>
+          <div class="cost-summary-row cost-balance"><span>Saldo</span><span class="${balance >= 0 ? "cost-in" : "cost-out"}">${escapeHtml(formatCHF(balance))}</span></div>
+        `;
+        summary.appendChild(box);
+      });
+      contentEl.appendChild(summary);
+    } else {
+      contentEl.appendChild(noEntries("Noch keine Kosten eingetragen."));
+    }
+
+    contentEl.appendChild(sectionTitleEl("Alle Eintr\u00e4ge"));
+    const list = document.createElement("div");
+    list.className = "log-list";
+    const sorted = [...costs].sort((a,b) => (b.date||"").localeCompare(a.date||""));
+    if(sorted.length === 0){ list.appendChild(noEntries("Noch keine Eintr\u00e4ge.")); }
+    sorted.forEach(c => {
+      if(editingCostId === c.id){
+        list.appendChild(buildCostForm(c));
+        return;
+      }
+      const row = document.createElement("div");
+      row.className = "log-row cost";
+      const typeLabel = c.type === "einnahme" ? "Einnahme" : "Ausgabe";
+      const typeColor = c.type === "einnahme" ? "#4C6650" : "#A6482F";
+      row.innerHTML = `
+        <div class="date">${escapeHtml(fmtDate(c.date))}</div>
+        <div class="type" style="background:${typeColor}">${escapeHtml(typeLabel)}</div>
+        <div class="desc">${escapeHtml(c.description || "")}</div>
+        <div class="${c.type === "einnahme" ? "cost-in" : "cost-out"}">${escapeHtml(formatCHF(c.amount))}</div>`;
+      const editBtn = document.createElement("button");
+      editBtn.className = "view-link"; editBtn.textContent = "Bearbeiten";
+      editBtn.onclick = () => { editingCostId = c.id; render(); };
+      row.appendChild(editBtn);
+      const delBtn = document.createElement("button");
+      delBtn.className = "del"; delBtn.innerHTML = "&times;"; delBtn.title = "L\u00f6schen";
+      delBtn.onclick = () => { state.costs = state.costs.filter(x => x.id !== c.id); save(); render(); };
+      row.appendChild(delBtn);
+      list.appendChild(row);
+    });
+    contentEl.appendChild(list);
+
+    if(addingCost){ contentEl.appendChild(buildCostForm()); }
+    else { contentEl.appendChild(toggleBtn("+ Eintrag hinzuf\u00fcgen", () => { addingCost = true; render(); })); }
+  }
+
+  function buildCostForm(existing){
+    const form = document.createElement("form");
+    form.className = "inline-form";
+    const today = new Date().toISOString().slice(0,10);
+    form.innerHTML = `
+      <div class="form-row three">
+        <div><label class="f-label">Datum</label><input type="date" name="date" value="${existing ? escapeAttr(existing.date) : today}" required /></div>
+        <div><label class="f-label">Art</label>
+          <select name="type">
+            <option value="einnahme" ${existing && existing.type === "einnahme" ? "selected" : ""}>Einnahme</option>
+            <option value="ausgabe" ${!existing || existing.type === "ausgabe" ? "selected" : ""}>Ausgabe</option>
+          </select>
+        </div>
+        <div><label class="f-label">Betrag (CHF)</label><input type="number" step="0.01" min="0" name="amount" required value="${existing ? escapeAttr(existing.amount) : ""}" /></div>
+      </div>
+      <div class="form-row full"><div><label class="f-label">Beschreibung</label><input type="text" name="description" placeholder="z.B. Futterkauf, Wollverkauf, Tierarztrechnung" value="${existing ? escapeAttr(existing.description) : ""}" /></div></div>
+      <div class="btn-row">
+        <button type="submit" class="btn">${existing ? "Speichern" : "Eintragen"}</button>
+        <button type="button" class="btn secondary" id="tk-cancel-cost">Abbrechen</button>
+      </div>`;
+    form.onsubmit = (e) => {
+      e.preventDefault();
+      const fd = new FormData(form);
+      if(existing){
+        existing.date = fd.get("date");
+        existing.type = fd.get("type");
+        existing.amount = parseFloat(fd.get("amount"));
+        existing.description = fd.get("description").trim();
+        editingCostId = null;
+      } else {
+        state.costs.push({
+          id: uid(), date: fd.get("date"), type: fd.get("type"),
+          amount: parseFloat(fd.get("amount")), description: fd.get("description").trim()
+        });
+        addingCost = false;
+      }
+      save(); render();
+    };
+    form.querySelector("#tk-cancel-cost").onclick = () => {
+      if(existing){ editingCostId = null; } else { addingCost = false; }
+      render();
+    };
+    return form;
+  }
+
   // ---------- Tier-Ansicht ----------
   function renderAnimal(){
     contentEl.innerHTML = "";
@@ -978,18 +1142,38 @@
 
     // Behandlungen
     contentEl.appendChild(sectionTitleEl("Behandlungsverlauf"));
+    const filterBar = document.createElement("div");
+    filterBar.className = "treatment-filter";
+    const filterOptionsHtml = `<option value="alle" ${treatmentFilter === "alle" ? "selected" : ""}>Alle Kategorien</option>`
+      + TREATMENT_TYPES.map(t => `<option value="${t}" ${treatmentFilter === t ? "selected" : ""}>${t}</option>`).join("");
+    filterBar.innerHTML = `<label class="f-label">Filter nach Kategorie</label><select id="tk-treatment-filter">${filterOptionsHtml}</select>`;
+    contentEl.appendChild(filterBar);
+    filterBar.querySelector("#tk-treatment-filter").onchange = (e) => { treatmentFilter = e.target.value; render(); };
+
     const tList = document.createElement("div"); tList.className = "log-list";
-    const tSorted = [...(animal.treatments || [])].sort((a,b) => (b.date||"").localeCompare(a.date||""));
-    if(tSorted.length === 0){ tList.appendChild(noEntries("Noch keine Behandlungen eingetragen.")); }
+    const tAll = [...(animal.treatments || [])].sort((a,b) => (b.date||"").localeCompare(a.date||""));
+    const tFiltered = treatmentFilter === "alle" ? tAll : tAll.filter(t => (t.type || "Sonstiges") === treatmentFilter);
+    const tSortedAll = tFiltered;
+    const tSorted = showAllTreatments ? tSortedAll : tSortedAll.slice(0, 10);
+    if(tSorted.length === 0){ tList.appendChild(noEntries(treatmentFilter === "alle" ? "Noch keine Behandlungen eingetragen." : "Keine Eintr\u00e4ge in dieser Kategorie.")); }
     else {
       tSorted.forEach(t => {
+        if(editingTreatmentId === t.id){
+          tList.appendChild(buildTreatmentForm(animal, t));
+          return;
+        }
         const row = document.createElement("div"); row.className = "log-row treatment";
         const nextClass = t.next && isOverdue(t.next) ? "next due" : "next";
+        const typeColor = TREATMENT_COLORS[t.type] || TREATMENT_COLORS["Sonstiges"];
         row.innerHTML = `
           <div class="date">${escapeHtml(fmtDate(t.date))}</div>
-          <div class="type">${escapeHtml(t.type || "Sonstiges")}</div>
+          <div class="type" style="background:${typeColor}">${escapeHtml(t.type || "Sonstiges")}</div>
           <div class="desc">${escapeHtml(t.desc || "")}</div>
           <div class="${nextClass}">${t.next ? "n\u00e4chster: " + escapeHtml(fmtDate(t.next)) : ""}</div>`;
+        const editBtn = document.createElement("button");
+        editBtn.className = "view-link"; editBtn.textContent = "Bearbeiten";
+        editBtn.onclick = () => { editingTreatmentId = t.id; render(); };
+        row.appendChild(editBtn);
         const del = document.createElement("button");
         del.className = "del"; del.innerHTML = "&times;"; del.title = "L\u00f6schen";
         del.onclick = () => { animal.treatments = animal.treatments.filter(x => x.id !== t.id); save(); render(); };
@@ -997,6 +1181,13 @@
       });
     }
     contentEl.appendChild(tList);
+    if(tSortedAll.length > 10){
+      const toggleAllBtn = document.createElement("button");
+      toggleAllBtn.className = "toggle-add";
+      toggleAllBtn.textContent = showAllTreatments ? "Nur letzte 10 anzeigen" : `Gesamten Verlauf anzeigen (${tSortedAll.length})`;
+      toggleAllBtn.onclick = () => { showAllTreatments = !showAllTreatments; render(); };
+      contentEl.appendChild(toggleAllBtn);
+    }
     if(addingTreatmentFor === animal.id){ contentEl.appendChild(buildTreatmentForm(animal)); }
     else { contentEl.appendChild(toggleBtn("+ Behandlung eintragen", () => { addingTreatmentFor = animal.id; render(); })); }
 
@@ -1007,6 +1198,10 @@
     if(sSorted.length === 0){ sList.appendChild(noEntries("Noch keine Kotproben eingetragen.")); }
     else {
       sSorted.forEach(s => {
+        if(editingStoolId === s.id){
+          sList.appendChild(buildStoolForm(animal, s));
+          return;
+        }
         const row = document.createElement("div"); row.className = "log-row stool";
         const isDue = s.next && isOverdue(s.next) && !s.nextDone;
         const nextClass = isDue ? "next due" : "next";
@@ -1034,6 +1229,10 @@
           nextCell.appendChild(label);
         }
         row.appendChild(nextCell);
+        const editBtn = document.createElement("button");
+        editBtn.className = "view-link"; editBtn.textContent = "Bearbeiten";
+        editBtn.onclick = () => { editingStoolId = s.id; render(); };
+        row.appendChild(editBtn);
         const del = document.createElement("button");
         del.className = "del"; del.innerHTML = "&times;"; del.title = "L\u00f6schen";
         del.onclick = () => { animal.stoolSamples = animal.stoolSamples.filter(x => x.id !== s.id); save(); render(); };
@@ -1269,56 +1468,77 @@
     return form;
   }
 
-  function buildTreatmentForm(animal){
+  function buildTreatmentForm(animal, existing){
     const form = document.createElement("form");
     form.className = "inline-form";
-    const options = TREATMENT_TYPES.map(t => `<option value="${t}">${t}</option>`).join("");
+    const options = TREATMENT_TYPES.map(t => `<option value="${t}" ${existing && existing.type === t ? "selected" : ""}>${t}</option>`).join("");
     form.innerHTML = `
       <div class="form-row three">
-        <div><label class="f-label">Datum</label><input type="date" name="date" required /></div>
+        <div><label class="f-label">Datum</label><input type="date" name="date" required value="${existing ? escapeAttr(existing.date) : ""}" /></div>
         <div><label class="f-label">Art</label><select name="type">${options}</select></div>
-        <div><label class="f-label">N\u00e4chster Termin</label><input type="date" name="next" /></div>
+        <div><label class="f-label">N\u00e4chster Termin</label><input type="date" name="next" value="${existing ? escapeAttr(existing.next) : ""}" /></div>
       </div>
-      <div class="form-row full"><div><label class="f-label">Beschreibung</label><input type="text" name="desc" placeholder="z.B. Tollwutimpfung, Zeckenmittel, ..." /></div></div>
+      <div class="form-row full"><div><label class="f-label">Beschreibung</label><input type="text" name="desc" placeholder="z.B. Tollwutimpfung, Zeckenmittel, ..." value="${existing ? escapeAttr(existing.desc) : ""}" /></div></div>
       <div class="btn-row">
-        <button type="submit" class="btn">Eintragen</button>
+        <button type="submit" class="btn">${existing ? "Speichern" : "Eintragen"}</button>
         <button type="button" class="btn secondary" id="tk-cancel-treatment">Abbrechen</button>
       </div>`;
     form.onsubmit = (e) => {
       e.preventDefault();
       const fd = new FormData(form);
-      if(!animal.treatments) animal.treatments = [];
-      animal.treatments.push({ id: uid(), date: fd.get("date"), type: fd.get("type"), next: fd.get("next") || "", desc: fd.get("desc").trim() });
-      addingTreatmentFor = null;
+      if(existing){
+        existing.date = fd.get("date");
+        existing.type = fd.get("type");
+        existing.next = fd.get("next") || "";
+        existing.desc = fd.get("desc").trim();
+        editingTreatmentId = null;
+      } else {
+        if(!animal.treatments) animal.treatments = [];
+        animal.treatments.push({ id: uid(), date: fd.get("date"), type: fd.get("type"), next: fd.get("next") || "", desc: fd.get("desc").trim() });
+        addingTreatmentFor = null;
+      }
       save(); render();
     };
-    form.querySelector("#tk-cancel-treatment").onclick = () => { addingTreatmentFor = null; render(); };
+    form.querySelector("#tk-cancel-treatment").onclick = () => {
+      if(existing){ editingTreatmentId = null; } else { addingTreatmentFor = null; }
+      render();
+    };
     return form;
   }
 
-  function buildStoolForm(animal){
+  function buildStoolForm(animal, existing){
     const form = document.createElement("form");
     form.className = "inline-form";
     const today = new Date().toISOString().slice(0,10);
     form.innerHTML = `
       <div class="form-row">
-        <div><label class="f-label">Datum der Probe</label><input type="date" name="date" value="${today}" required /></div>
-        <div><label class="f-label">N\u00e4chste Probe f\u00e4llig am</label><input type="date" name="next" /></div>
+        <div><label class="f-label">Datum der Probe</label><input type="date" name="date" value="${existing ? escapeAttr(existing.date) : today}" required /></div>
+        <div><label class="f-label">N\u00e4chste Probe f\u00e4llig am</label><input type="date" name="next" value="${existing ? escapeAttr(existing.next) : ""}" /></div>
       </div>
-      <div class="form-row full"><div><label class="f-label">Befund</label><textarea name="result" placeholder="z.B. unauff\u00e4llig, Wurmeier nachgewiesen, ..."></textarea></div></div>
+      <div class="form-row full"><div><label class="f-label">Befund</label><textarea name="result" placeholder="z.B. unauff\u00e4llig, Wurmeier nachgewiesen, ...">${existing ? escapeHtml(existing.result) : ""}</textarea></div></div>
       <div class="btn-row">
-        <button type="submit" class="btn">Eintragen</button>
+        <button type="submit" class="btn">${existing ? "Speichern" : "Eintragen"}</button>
         <button type="button" class="btn secondary" id="tk-cancel-stool">Abbrechen</button>
       </div>`;
     form.onsubmit = (e) => {
       e.preventDefault();
       const fd = new FormData(form);
-      if(!animal.stoolSamples) animal.stoolSamples = [];
-      animal.stoolSamples.push({ id: uid(), date: fd.get("date"), result: fd.get("result").trim(), next: fd.get("next") || "" });
-      addingStoolFor = null;
+      if(existing){
+        existing.date = fd.get("date");
+        existing.result = fd.get("result").trim();
+        existing.next = fd.get("next") || "";
+        editingStoolId = null;
+      } else {
+        if(!animal.stoolSamples) animal.stoolSamples = [];
+        animal.stoolSamples.push({ id: uid(), date: fd.get("date"), result: fd.get("result").trim(), next: fd.get("next") || "" });
+        addingStoolFor = null;
+      }
       save(); render();
     };
-    form.querySelector("#tk-cancel-stool").onclick = () => { addingStoolFor = null; render(); };
+    form.querySelector("#tk-cancel-stool").onclick = () => {
+      if(existing){ editingStoolId = null; } else { addingStoolFor = null; }
+      render();
+    };
     return form;
   }
 
